@@ -1,20 +1,16 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   FileSpreadsheet, 
-  Upload, 
   Printer, 
-  Sparkles, 
   Compass, 
-  BookOpen, 
-  RotateCcw, 
   Settings,
   FolderArchive,
   Save,
   Trash2,
-  Check
+  Check,
+  ChevronDown,
+  Plus
 } from 'lucide-react';
-import { parseItineraryExcel } from '../utils/excelParser';
-import { figure1Itinerary, standard18DaysQuoteDoc } from '../constants/initialData';
 import { getSavedQuotes, saveQuoteToHistory, deleteQuoteFromHistory } from '../utils/storage';
 import type { QuoteDocument } from '../types/itinerary';
 
@@ -22,7 +18,7 @@ interface HeaderProps {
   quoteDoc: QuoteDocument;
   onUpdateDoc: (newDoc: QuoteDocument) => void;
   onExportExcel: () => void;
-  onOpenActivityLibrary: () => void;
+  onOpenActivityLibrary?: () => void;
   onOpenSettings: () => void;
   isExporting?: boolean;
 }
@@ -31,42 +27,19 @@ export const Header: React.FC<HeaderProps> = ({
   quoteDoc,
   onUpdateDoc,
   onExportExcel,
-  onOpenActivityLibrary,
   onOpenSettings,
   isExporting = false,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [savedQuotes, setSavedQuotes] = useState<QuoteDocument[]>(getSavedQuotes());
-  const [saveToast, setSaveToast] = useState(false);
-
-  // 处理文件上传解析
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const items = await parseItineraryExcel(file);
-      onUpdateDoc({
-        ...quoteDoc,
-        itinerary: items,
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        updatedAt: new Date().toISOString().slice(0, 10),
-      });
-      alert(`成功解析并载入 ${items.length} 天行程数据！`);
-    } catch (err: any) {
-      alert('解析 Excel 失败：' + (err.message || '请检查表格格式'));
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // 保存当前报价单到草稿箱
   const handleSaveDraft = () => {
     const updated = saveQuoteToHistory(quoteDoc);
     setSavedQuotes(updated);
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2000);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
   };
 
   // 删除历史草稿
@@ -84,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="top-header">
+      {/* 1. 品牌区 */}
       <div className="brand-section">
         <div className="brand-logo">
           <div className="brand-logo-icon">
@@ -91,53 +65,35 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <span>NZ Travel Quoter</span>
         </div>
-        <span className="badge badge-blue">正式版</span>
+        <span className="badge badge-blue">商业定制版</span>
       </div>
 
-      {/* 中间：快捷模板与配置中心入口 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
-
-        <button
-          onClick={onOpenActivityLibrary}
-          style={{
-            background: 'rgba(13, 153, 255, 0.1)',
-            border: '1px solid rgba(13, 153, 255, 0.25)',
-            color: '#38bdf8',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-        >
-          <BookOpen size={13} />
-          新西兰门票库
-        </button>
-
-        {/* 业务配置与价格中心按钮 */}
+      {/* 2. 中间：系统设置、草稿箱、核算底表开关（聚合精简） */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* 系统价格与参数设置 */}
         <button
           onClick={onOpenSettings}
           style={{
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            color: '#34d399',
-            padding: '5px 11px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-main)',
+            padding: '6px 12px',
             borderRadius: '6px',
             fontSize: '12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '5px',
+            gap: '6px',
             fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
           }}
-          title="配置南岛/北岛餐补、异地住宿费、车型单价、门票价格"
+          title="维护车型单价、餐补住宿费、门票价格库与 AI 视觉配置"
         >
-          <Settings size={13} />
-          价格与参数设置
+          <Settings size={13} color="#60a5fa" />
+          价格与系统设置
         </button>
 
-        {/* 历史草稿箱 */}
+        {/* 统一草稿箱下拉管理 */}
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => {
@@ -145,172 +101,186 @@ export const Header: React.FC<HeaderProps> = ({
               setIsHistoryOpen(!isHistoryOpen);
             }}
             style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-muted)',
-              padding: '5px 10px',
+              background: isHistoryOpen ? 'var(--bg-panel)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${isHistoryOpen ? 'var(--figma-blue)' : 'var(--border-subtle)'}`,
+              color: 'var(--text-main)',
+              padding: '6px 12px',
               borderRadius: '6px',
               fontSize: '12px',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
+              gap: '6px',
+              cursor: 'pointer',
+              fontWeight: 500,
             }}
           >
-            <FolderArchive size={13} />
-            历史草稿 ({savedQuotes.length})
+            <FolderArchive size={13} color="#fbbf24" />
+            <span>草稿箱 ({savedQuotes.length})</span>
+            <ChevronDown size={12} color="var(--text-dim)" />
           </button>
 
           {isHistoryOpen && (
             <div style={{
               position: 'absolute',
-              top: '36px',
+              top: '38px',
               left: 0,
-              width: '280px',
+              width: '310px',
               background: 'var(--bg-topbar)',
               border: '1px solid var(--border-strong)',
               borderRadius: '8px',
-              boxShadow: 'var(--shadow-figma-md)',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65)',
               zIndex: 100,
               padding: '8px',
-              maxHeight: '320px',
-              overflowY: 'auto',
+              maxHeight: '380px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
             }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-dim)', padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '6px' }}>
-                已保存的本地历史报价单
+              {/* 顶部：快捷存为新草稿按钮 */}
+              <button
+                onClick={handleSaveDraft}
+                style={{
+                  width: '100%',
+                  background: saveSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(13, 153, 255, 0.12)',
+                  border: `1px solid ${saveSuccess ? 'rgba(16, 185, 129, 0.35)' : 'rgba(13, 153, 255, 0.3)'}`,
+                  color: saveSuccess ? '#34d399' : '#60a5fa',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                {saveSuccess ? <Check size={14} /> : <Plus size={14} />}
+                {saveSuccess ? '当前单据已成功保存！' : '将当前单据存为新草稿'}
+              </button>
+
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', padding: '4px 6px', borderBottom: '1px solid var(--border-subtle)' }}>
+                本地已保存的报价单 ({savedQuotes.length})
               </div>
-              {savedQuotes.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dim)' }}>
-                  暂无保存的草稿，点击“存为草稿”即可保存当前单据
-                </div>
-              ) : (
-                savedQuotes.map((q, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleLoadDraft(q)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '12px',
-                      background: quoteDoc.title === q.title ? 'var(--bg-panel)' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-panel)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = quoteDoc.title === q.title ? 'var(--bg-panel)' : 'transparent'}
-                  >
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      <strong style={{ display: 'block', color: 'var(--text-main)' }}>{q.title}</strong>
-                      <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{q.itinerary?.length}天 • {q.updatedAt?.slice(0, 10)}</span>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteDraft(q.title, e)}
-                      style={{ background: 'transparent', color: 'var(--text-dim)', padding: '2px 4px' }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
+
+              <div style={{ overflowY: 'auto', maxHeight: '240px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                {savedQuotes.length === 0 ? (
+                  <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dim)' }}>
+                    暂无历史草稿，点击上方按钮即可随时保存当前单据
                   </div>
-                ))
-              )}
+                ) : (
+                  savedQuotes.map((q, idx) => {
+                    const isCurrent = quoteDoc.title === q.title;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleLoadDraft(q)}
+                        style={{
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '12px',
+                          background: isCurrent ? 'rgba(13, 153, 255, 0.12)' : 'transparent',
+                          border: isCurrent ? '1px solid rgba(13, 153, 255, 0.25)' : '1px solid transparent',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isCurrent) e.currentTarget.style.background = 'var(--bg-panel)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          <strong style={{ display: 'block', color: isCurrent ? '#60a5fa' : 'var(--text-main)', fontSize: '12px' }}>
+                            {q.title}
+                          </strong>
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
+                            {q.itinerary?.length} 天 • {q.clientInfo?.name || '未知客户'} • {q.updatedAt?.slice(0, 10)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteDraft(q.title, e)}
+                          title="删除此草稿"
+                          style={{
+                            background: 'transparent',
+                            color: 'var(--text-dim)',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* 导出时是否带 E~L 列成本核算底表开关 */}
+        {/* 导出时是否带 E~L 列成本核算底表开关（微胶囊风格） */}
         <label style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '5px',
-          fontSize: '11px',
-          color: 'var(--text-muted)',
-          marginLeft: '6px',
+          gap: '6px',
+          fontSize: '11.5px',
+          color: quoteDoc.includeCostBreakdown !== false ? '#34d399' : 'var(--text-dim)',
+          background: quoteDoc.includeCostBreakdown !== false ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+          border: `1px solid ${quoteDoc.includeCostBreakdown !== false ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-subtle)'}`,
+          padding: '4px 10px',
+          borderRadius: '6px',
           cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'all 0.2s ease',
         }}>
           <input
             type="checkbox"
             checked={quoteDoc.includeCostBreakdown !== false}
             onChange={(e) => onUpdateDoc({ ...quoteDoc, includeCostBreakdown: e.target.checked })}
-            style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+            style={{ width: '13px', height: '13px', accentColor: '#10b981', cursor: 'pointer' }}
           />
-          <span>含核算底表(E~L)</span>
+          <span>含核算底表 (E~L)</span>
         </label>
       </div>
 
-      {/* 右侧：上传、保存草稿与导出主要操作 */}
-      <div className="header-actions">
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".xlsx,.xls,.csv"
-          style={{ display: 'none' }}
-        />
-
-        <button
-          onClick={handleSaveDraft}
-          style={{
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border-subtle)',
-            color: saveToast ? '#34d399' : 'var(--text-muted)',
-            padding: '7px 11px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-          title="将当前报价单保存到本地草稿箱"
-        >
-          {saveToast ? <Check size={13} /> : <Save size={13} />}
-          {saveToast ? '已保存草稿' : '存为草稿'}
-        </button>
-
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border-strong)',
-            color: 'var(--text-main)',
-            padding: '7px 13px',
-            borderRadius: '6px',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: 500,
-          }}
-        >
-          <Upload size={14} />
-          上传客户行程单
-        </button>
-
+      {/* 3. 右侧交付区：PDF 与生成标准 Excel */}
+      <div className="header-actions" style={{ gap: '8px' }}>
+        {/* PDF 打印与另存为 */}
         <button
           onClick={() => window.print()}
           style={{
             background: 'var(--bg-panel)',
             border: '1px solid var(--border-subtle)',
             color: 'var(--text-muted)',
-            padding: '7px 11px',
+            padding: '6px 12px',
             borderRadius: '6px',
-            fontSize: '13px',
+            fontSize: '12.5px',
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
+            cursor: 'pointer',
           }}
           title="打印或直接另存为高清 PDF"
         >
           <Printer size={14} />
-          PDF
+          <span>PDF</span>
         </button>
 
+        {/* 生成标准商业报价 Excel */}
         <button
           onClick={onExportExcel}
           disabled={isExporting}
           style={{
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             color: '#ffffff',
-            padding: '7px 16px',
+            padding: '6px 16px',
             borderRadius: '6px',
             fontSize: '13px',
             fontWeight: 600,
@@ -322,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
           }}
         >
           <FileSpreadsheet size={15} />
-          {isExporting ? '生成中...' : '生成标准报价 Excel'}
+          <span>{isExporting ? '生成中...' : '生成标准报价 Excel'}</span>
         </button>
       </div>
     </header>
