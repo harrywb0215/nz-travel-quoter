@@ -17,14 +17,18 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
-  Loader2
+  Loader2,
+  Pencil,
+  MapPin,
+  Users
 } from 'lucide-react';
 import { 
   SystemConfig, 
   defaultSystemConfig, 
   saveSystemConfig, 
   exportConfigToFile, 
-  importConfigFromFile 
+  importConfigFromFile,
+  VehicleConfigItem
 } from '../utils/storage';
 import { testGeminiApiKey } from '../utils/geminiVisionParser';
 import type { PresetActivity } from '../types/itinerary';
@@ -50,6 +54,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 车型添加/编辑弹窗状态
+  const [editingVehicle, setEditingVehicle] = useState<{
+    isNew: boolean;
+    data: VehicleConfigItem;
+  } | null>(null);
+
+  // 景点门票添加/编辑弹窗状态
+  const [editingActivity, setEditingActivity] = useState<{
+    isNew: boolean;
+    data: PresetActivity;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -119,37 +135,115 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  // 新增车型
-  const handleAddVehicle = () => {
-    const newV = {
-      id: `v-custom-${Date.now()}`,
-      name: '新车型',
-      northIslandPrice: 800,
-      southIslandPrice: 900,
-      holidaySurcharge: 180,
-      capacity: '4-6人',
-      desc: '舒适商务车型',
-    };
-    setCurrentConfig({
-      ...currentConfig,
-      vehicleList: [...currentConfig.vehicleList, newV],
+  // 打开「添加车型」弹窗
+  const handleOpenAddVehicle = () => {
+    setEditingVehicle({
+      isNew: true,
+      data: {
+        id: `v-custom-${Date.now()}`,
+        name: '',
+        capacity: '4-6人',
+        northIslandPrice: 750,
+        southIslandPrice: 850,
+        holidaySurcharge: 180,
+        desc: '',
+      },
     });
   };
 
-  // 新增景点
-  const handleAddActivity = () => {
-    const newAct: PresetActivity = {
-      id: `act-custom-${Date.now()}`,
-      name: '新西兰新景点门票',
-      location: '皇后镇',
-      adultPrice: 100,
-      childPrice: 50,
-      description: '特色旅游体验项目',
-    };
-    setCurrentConfig({
-      ...currentConfig,
-      activityLibrary: [newAct, ...currentConfig.activityLibrary],
+  // 打开「编辑车型」弹窗
+  const handleOpenEditVehicle = (vehicle: VehicleConfigItem) => {
+    setEditingVehicle({
+      isNew: false,
+      data: { ...vehicle },
     });
+  };
+
+  // 保存车型弹窗数据
+  const handleSaveVehicleModal = (savedVehicle: VehicleConfigItem, isNew: boolean) => {
+    if (!savedVehicle.name.trim()) {
+      alert('请输入车型名称！');
+      return;
+    }
+    if (isNew) {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        vehicleList: [...prev.vehicleList, savedVehicle],
+      }));
+    } else {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        vehicleList: prev.vehicleList.map((v) => (v.id === savedVehicle.id ? savedVehicle : v)),
+      }));
+    }
+    setEditingVehicle(null);
+  };
+
+  // 删除车型（增加二次确认）
+  const handleDeleteVehicle = (id: string, name: string) => {
+    if (confirm(`确定要从价格库中删除车型「${name}」吗？`)) {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        vehicleList: prev.vehicleList.filter((v) => v.id !== id),
+      }));
+    }
+  };
+
+  // 打开「新增景点门票」弹窗
+  const handleOpenAddActivity = () => {
+    setEditingActivity({
+      isNew: true,
+      data: {
+        id: `act-custom-${Date.now()}`,
+        name: '',
+        location: '皇后镇',
+        adultPrice: 100,
+        childPrice: 50,
+        description: '',
+      },
+    });
+  };
+
+  // 打开「编辑景点门票」弹窗
+  const handleOpenEditActivity = (act: PresetActivity) => {
+    setEditingActivity({
+      isNew: false,
+      data: { ...act },
+    });
+  };
+
+  // 保存景点门票弹窗数据
+  const handleSaveActivityModal = (savedAct: PresetActivity, isNew: boolean) => {
+    if (!savedAct.name.trim()) {
+      alert('请输入景点门票名称！');
+      return;
+    }
+    if (!savedAct.location.trim()) {
+      alert('请输入或选择所属地区！');
+      return;
+    }
+    if (isNew) {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        activityLibrary: [savedAct, ...prev.activityLibrary],
+      }));
+    } else {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        activityLibrary: prev.activityLibrary.map((a) => (a.id === savedAct.id ? savedAct : a)),
+      }));
+    }
+    setEditingActivity(null);
+  };
+
+  // 删除景点门票（增加二次确认）
+  const handleDeleteActivity = (id: string, name: string) => {
+    if (confirm(`确定要从价格库中删除景点门票「${name}」吗？`)) {
+      setCurrentConfig((prev) => ({
+        ...prev,
+        activityLibrary: prev.activityLibrary.filter((a) => a.id !== id),
+      }));
+    }
   };
 
   return (
@@ -437,103 +531,128 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'vehicles' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600 }}>常用车型价格库配置</h4>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600 }}>常用车型价格库配置</h4>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>支持独立弹窗维护价格，点击右侧「编辑」修改，防止列表滚动误操作</span>
+                  </div>
                   <button
-                    onClick={handleAddVehicle}
+                    onClick={handleOpenAddVehicle}
                     style={{
                       background: 'rgba(245, 158, 11, 0.15)',
                       color: '#fbbf24',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      fontSize: '12.5px',
+                      fontWeight: 500,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      cursor: 'pointer',
                     }}
                   >
-                    <Plus size={13} /> 添加车型
+                    <Plus size={14} /> 添加车型
                   </button>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {currentConfig.vehicleList.map((v, idx) => (
+                  {currentConfig.vehicleList.map((v) => (
                     <div
                       key={v.id}
                       style={{
                         background: 'var(--bg-panel)',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: '8px',
-                        padding: '12px',
+                        padding: '12px 14px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '8px',
+                        gap: '10px',
                       }}
                     >
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          value={v.name}
-                          onChange={(e) => {
-                            const list = [...currentConfig.vehicleList];
-                            list[idx].name = e.target.value;
-                            setCurrentConfig({ ...currentConfig, vehicleList: list });
-                          }}
-                          placeholder="车型名称"
-                          style={{ flex: 1, fontWeight: 600 }}
-                        />
-                        <button
-                          onClick={() => {
-                            const list = currentConfig.vehicleList.filter((_, i) => i !== idx);
-                            setCurrentConfig({ ...currentConfig, vehicleList: list });
-                          }}
-                          style={{ background: 'transparent', color: 'var(--text-dim)', padding: '4px' }}
-                          title="删除车型"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Car size={16} color="var(--figma-blue)" />
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {v.name}
+                          </span>
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            color: 'var(--text-dim)',
+                            border: '1px solid var(--border-subtle)'
+                          }}>
+                            {v.capacity || '标准容量'}
+                          </span>
+                          {v.desc && (
+                            <span style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginLeft: '4px' }}>
+                              · {v.desc}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            onClick={() => handleOpenEditVehicle(v)}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: '#38bdf8',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              border: '1px solid rgba(56, 189, 248, 0.25)',
+                              cursor: 'pointer',
+                            }}
+                            title="弹出弹窗编辑车型配置"
+                          >
+                            <Pencil size={12} /> 编辑
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVehicle(v.id, v.name)}
+                            style={{
+                              background: 'transparent',
+                              color: 'var(--text-dim)',
+                              padding: '4px 6px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                            title="删除车型"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 1fr',
+                        gap: '10px',
+                        background: 'rgba(0, 0, 0, 0.2)',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 255, 255, 0.04)'
+                      }}>
                         <div>
-                          <label style={{ fontSize: '11px', color: 'var(--text-dim)' }}>南岛基础日租 ($)</label>
-                          <input
-                            type="number"
-                            value={v.southIslandPrice}
-                            onChange={(e) => {
-                              const list = [...currentConfig.vehicleList];
-                              list[idx].southIslandPrice = Number(e.target.value) || 0;
-                              setCurrentConfig({ ...currentConfig, vehicleList: list });
-                            }}
-                            style={{ width: '100%' }}
-                          />
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>南岛基础日租</div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#34d399', marginTop: '2px' }}>
+                            ${v.southIslandPrice} <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 400 }}>NZD/天</span>
+                          </div>
                         </div>
-
                         <div>
-                          <label style={{ fontSize: '11px', color: 'var(--text-dim)' }}>北岛基础日租 ($)</label>
-                          <input
-                            type="number"
-                            value={v.northIslandPrice}
-                            onChange={(e) => {
-                              const list = [...currentConfig.vehicleList];
-                              list[idx].northIslandPrice = Number(e.target.value) || 0;
-                              setCurrentConfig({ ...currentConfig, vehicleList: list });
-                            }}
-                            style={{ width: '100%' }}
-                          />
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>北岛基础日租</div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#60a5fa', marginTop: '2px' }}>
+                            ${v.northIslandPrice} <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 400 }}>NZD/天</span>
+                          </div>
                         </div>
-
                         <div>
-                          <label style={{ fontSize: '11px', color: 'var(--text-dim)' }}>春节/旺季附加费 ($/天)</label>
-                          <input
-                            type="number"
-                            value={v.holidaySurcharge}
-                            onChange={(e) => {
-                              const list = [...currentConfig.vehicleList];
-                              list[idx].holidaySurcharge = Number(e.target.value) || 0;
-                              setCurrentConfig({ ...currentConfig, vehicleList: list });
-                            }}
-                            style={{ width: '100%' }}
-                          />
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>春节/旺季附加费</div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#fbbf24', marginTop: '2px' }}>
+                            +${v.holidaySurcharge} <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 400 }}>NZD/天</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -546,21 +665,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {activeTab === 'activities' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600 }}>新西兰门票单价库维护</h4>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600 }}>新西兰门票单价库维护</h4>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>已录入 {currentConfig.activityLibrary.length} 项景点门票，点击右侧「编辑」修改</span>
+                  </div>
                   <button
-                    onClick={handleAddActivity}
+                    onClick={handleOpenAddActivity}
                     style={{
                       background: 'rgba(13, 153, 255, 0.15)',
                       color: '#38bdf8',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      fontSize: '12.5px',
+                      fontWeight: 500,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: '5px',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      cursor: 'pointer',
                     }}
                   >
-                    <Plus size={13} /> 新增景点门票
+                    <Plus size={14} /> 新增景点门票
                   </button>
                 </div>
 
@@ -572,83 +697,116 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={{ width: '100%' }}
                 />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
                   {currentConfig.activityLibrary
                     .filter((a) => a.name.toLowerCase().includes(actSearch.toLowerCase()) || a.location.includes(actSearch))
-                    .map((act, idx) => (
+                    .map((act) => (
                       <div
                         key={act.id}
                         style={{
                           background: 'var(--bg-panel)',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: '6px',
-                          padding: '10px 12px',
+                          padding: '10px 14px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '10px',
+                          justifyContent: 'space-between',
+                          gap: '12px',
                         }}
                       >
-                        <input
-                          type="text"
-                          value={act.name}
-                          onChange={(e) => {
-                            const list = [...currentConfig.activityLibrary];
-                            list[idx].name = e.target.value;
-                            setCurrentConfig({ ...currentConfig, activityLibrary: list });
-                          }}
-                          style={{ flex: 1 }}
-                        />
-
-                        <input
-                          type="text"
-                          value={act.location}
-                          onChange={(e) => {
-                            const list = [...currentConfig.activityLibrary];
-                            list[idx].location = e.target.value;
-                            setCurrentConfig({ ...currentConfig, activityLibrary: list });
-                          }}
-                          placeholder="地区"
-                          style={{ width: '90px', fontSize: '12px' }}
-                        />
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>成人$</span>
-                          <input
-                            type="number"
-                            value={act.adultPrice}
-                            onChange={(e) => {
-                              const list = [...currentConfig.activityLibrary];
-                              list[idx].adultPrice = Number(e.target.value) || 0;
-                              setCurrentConfig({ ...currentConfig, activityLibrary: list });
-                            }}
-                            style={{ width: '70px', fontWeight: 600, color: '#60a5fa' }}
-                          />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            color: '#38bdf8',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            border: '1px solid rgba(56, 189, 248, 0.25)'
+                          }}>
+                            {act.location}
+                          </span>
+                          <span style={{
+                            fontSize: '13.5px',
+                            fontWeight: 600,
+                            color: 'var(--text-main)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {act.name}
+                          </span>
+                          {act.description && (
+                            <span style={{
+                              fontSize: '12px',
+                              color: 'var(--text-dim)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: '180px'
+                            }}>
+                              · {act.description}
+                            </span>
+                          )}
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>儿童$</span>
-                          <input
-                            type="number"
-                            value={act.childPrice || ''}
-                            placeholder="无"
-                            onChange={(e) => {
-                              const list = [...currentConfig.activityLibrary];
-                              list[idx].childPrice = Number(e.target.value) || undefined;
-                              setCurrentConfig({ ...currentConfig, activityLibrary: list });
-                            }}
-                            style={{ width: '60px' }}
-                          />
-                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>成人</span>
+                            <span style={{ fontSize: '14px', fontWeight: 600, color: '#60a5fa' }}>
+                              ${act.adultPrice}
+                            </span>
+                          </div>
 
-                        <button
-                          onClick={() => {
-                            const list = currentConfig.activityLibrary.filter((_, i) => i !== idx);
-                            setCurrentConfig({ ...currentConfig, activityLibrary: list });
-                          }}
-                          style={{ background: 'transparent', color: 'var(--text-dim)' }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>儿童</span>
+                            <span style={{
+                              fontSize: '13px',
+                              fontWeight: act.childPrice !== undefined && act.childPrice !== null ? 600 : 400,
+                              color: act.childPrice !== undefined && act.childPrice !== null ? '#fbbf24' : 'var(--text-dim)'
+                            }}>
+                              {act.childPrice !== undefined && act.childPrice !== null && !isNaN(Number(act.childPrice))
+                                ? `$${act.childPrice}`
+                                : '无'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                            <button
+                              onClick={() => handleOpenEditActivity(act)}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                color: '#38bdf8',
+                                padding: '4px 10px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                cursor: 'pointer',
+                              }}
+                              title="弹出弹窗编辑门票价格"
+                            >
+                              <Pencil size={12} /> 编辑
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteActivity(act.id, act.name)}
+                              style={{
+                                background: 'transparent',
+                                color: 'var(--text-dim)',
+                                padding: '4px 6px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                              }}
+                              title="删除门票"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -1062,6 +1220,403 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </button>
         </div>
+
+        {/* 车型独立维护模态弹窗 */}
+        {editingVehicle && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 220,
+          }}>
+            <div style={{
+              background: 'var(--bg-topbar)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '12px',
+              width: '520px',
+              maxWidth: '92vw',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.85)',
+              overflow: 'hidden',
+            }}>
+              {/* 弹窗头部 */}
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Car size={18} color="#fbbf24" />
+                  <h3 style={{ fontSize: '15px', fontWeight: 600 }}>
+                    {editingVehicle.isNew ? '添加常用车型价格配置' : `编辑车型配置 · ${editingVehicle.data.name}`}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setEditingVehicle(null)}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* 弹窗表单 */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                    车型名称 <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="例如：7 座 Alphard 或 12座丰田海狮 + 拖斗"
+                    value={editingVehicle.data.name}
+                    onChange={(e) => setEditingVehicle({
+                      ...editingVehicle,
+                      data: { ...editingVehicle.data, name: e.target.value }
+                    })}
+                    style={{ width: '100%', fontSize: '13px' }}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
+                      核载与空间规格
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="例如：4-6人 或 10-12人+拖斗"
+                      value={editingVehicle.data.capacity || ''}
+                      onChange={(e) => setEditingVehicle({
+                        ...editingVehicle,
+                        data: { ...editingVehicle.data, capacity: e.target.value }
+                      })}
+                      style={{ width: '100%', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
+                      春节/旺季附加费 ($ NZD/天)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={editingVehicle.data.holidaySurcharge}
+                      onChange={(e) => setEditingVehicle({
+                        ...editingVehicle,
+                        data: { ...editingVehicle.data, holidaySurcharge: Number(e.target.value) || 0 }
+                      })}
+                      style={{ width: '100%', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                      南岛基础日租 ($ NZD/天) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="850"
+                      value={editingVehicle.data.southIslandPrice}
+                      onChange={(e) => setEditingVehicle({
+                        ...editingVehicle,
+                        data: { ...editingVehicle.data, southIslandPrice: Number(e.target.value) || 0 }
+                      })}
+                      style={{ width: '100%', fontSize: '13px', color: '#34d399', fontWeight: 600 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                      北岛基础日租 ($ NZD/天) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="750"
+                      value={editingVehicle.data.northIslandPrice}
+                      onChange={(e) => setEditingVehicle({
+                        ...editingVehicle,
+                        data: { ...editingVehicle.data, northIslandPrice: Number(e.target.value) || 0 }
+                      })}
+                      style={{ width: '100%', fontSize: '13px', color: '#60a5fa', fontWeight: 600 }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'block', marginBottom: '6px' }}>
+                    车型特点 / 适用场景描述（选填）
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="例如：丰田高端商务MPV，乘坐舒适，适合尊贵小团"
+                    value={editingVehicle.data.desc || ''}
+                    onChange={(e) => setEditingVehicle({
+                      ...editingVehicle,
+                      data: { ...editingVehicle.data, desc: e.target.value }
+                    })}
+                    style={{ width: '100%', fontSize: '12.5px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 弹窗底部操作栏 */}
+              <div style={{
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                background: 'rgba(0, 0, 0, 0.15)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingVehicle(null)}
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    padding: '7px 16px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveVehicleModal(editingVehicle.data, editingVehicle.isNew)}
+                  style={{
+                    background: 'var(--figma-blue)',
+                    color: '#ffffff',
+                    padding: '7px 20px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 10px rgba(13, 153, 255, 0.35)',
+                  }}
+                >
+                  确定保存并进入列表
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 景点门票独立维护模态弹窗 */}
+        {editingActivity && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 220,
+          }}>
+            <div style={{
+              background: 'var(--bg-topbar)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '12px',
+              width: '520px',
+              maxWidth: '92vw',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.85)',
+              overflow: 'hidden',
+            }}>
+              {/* 弹窗头部 */}
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Ticket size={18} color="#38bdf8" />
+                  <h3 style={{ fontSize: '15px', fontWeight: 600 }}>
+                    {editingActivity.isNew ? '新增景点门票配置' : `编辑门票 · ${editingActivity.data.name}`}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setEditingActivity(null)}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* 弹窗表单 */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                    景点/门票项目名称 <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="例如：TSS 厄恩斯劳号蒸汽船 + 瓦尔特峰农场"
+                    value={editingActivity.data.name}
+                    onChange={(e) => setEditingActivity({
+                      ...editingActivity,
+                      data: { ...editingActivity.data, name: e.target.value }
+                    })}
+                    style={{ width: '100%', fontSize: '13px' }}
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>
+                      所属地区/城市 <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>可点击下方快捷标签填入</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="例如：皇后镇、奥克兰、罗托鲁瓦、峡湾"
+                    value={editingActivity.data.location}
+                    onChange={(e) => setEditingActivity({
+                      ...editingActivity,
+                      data: { ...editingActivity.data, location: e.target.value }
+                    })}
+                    style={{ width: '100%', fontSize: '13px' }}
+                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                    {['皇后镇', '罗托鲁瓦', '奥克兰', '基督城', '马瑟森湖', '凯库拉', '峡湾', '蒂阿瑙', '特卡波', '瓦纳卡'].map((city) => (
+                      <button
+                        key={city}
+                        type="button"
+                        onClick={() => setEditingActivity({
+                          ...editingActivity,
+                          data: { ...editingActivity.data, location: city }
+                        })}
+                        style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          background: editingActivity.data.location === city ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                          color: editingActivity.data.location === city ? '#38bdf8' : 'var(--text-dim)',
+                          border: '1px solid ' + (editingActivity.data.location === city ? 'rgba(56, 189, 248, 0.4)' : 'transparent'),
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                      成人门票单价 ($ NZD) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={editingActivity.data.adultPrice}
+                      onChange={(e) => setEditingActivity({
+                        ...editingActivity,
+                        data: { ...editingActivity.data, adultPrice: Number(e.target.value) || 0 }
+                      })}
+                      style={{ width: '100%', fontSize: '13px', color: '#60a5fa', fontWeight: 600 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
+                      儿童门票单价 ($ NZD，可选)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="无/留空"
+                      value={editingActivity.data.childPrice ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : Number(e.target.value);
+                        setEditingActivity({
+                          ...editingActivity,
+                          data: { ...editingActivity.data, childPrice: val }
+                        });
+                      }}
+                      style={{ width: '100%', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'block', marginBottom: '6px' }}>
+                    活动门票简介 / 游玩包含（选填）
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="例如：含游船巡航及高地牧场游览，时长约3.5小时"
+                    value={editingActivity.data.description || ''}
+                    onChange={(e) => setEditingActivity({
+                      ...editingActivity,
+                      data: { ...editingActivity.data, description: e.target.value }
+                    })}
+                    style={{ width: '100%', fontSize: '12.5px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 弹窗底部操作栏 */}
+              <div style={{
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                background: 'rgba(0, 0, 0, 0.15)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingActivity(null)}
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    padding: '7px 16px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveActivityModal(editingActivity.data, editingActivity.isNew)}
+                  style={{
+                    background: 'var(--figma-blue)',
+                    color: '#ffffff',
+                    padding: '7px 20px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 10px rgba(13, 153, 255, 0.35)',
+                  }}
+                >
+                  确定保存并进入列表
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
