@@ -1,6 +1,7 @@
 import React from 'react';
-import { Ticket, Wand2, BookOpen, AlertCircle } from 'lucide-react';
+import { Ticket, Wand2, BookOpen, AlertCircle, Sparkles } from 'lucide-react';
 import { ActivityQuote, ItineraryItem } from '../../types/itinerary';
+import { loadSystemConfig } from '../../utils/storage';
 
 interface ActivityConfigProps {
   activityQuote: ActivityQuote;
@@ -15,14 +16,14 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
   onChange,
   onOpenLibrary,
 }) => {
-  // 一键从行程中智能抓取所有活动
+  // 一键从行程中智能抓取所有活动，并自动在门票库中匹配单价与核算总额
   const handleAutoExtractActivities = () => {
     const extractedList: string[] = [];
     itinerary.forEach((item) => {
       const act = item.activity?.trim();
       if (act && !act.includes('不用车') && !extractedList.includes(act)) {
         // 切分像 "龙虾船（包船）/ 出海看海豚" 或 "毛利文化村 / 陶波湖游览"
-        const subActs = act.split(/[/+；;，,]/).map((s) => s.trim()).filter(Boolean);
+        const subActs = act.split(/[/+；;，,\n]/).map((s) => s.trim()).filter(Boolean);
         subActs.forEach((s) => {
           if (!extractedList.includes(s)) {
             extractedList.push(s);
@@ -36,11 +37,28 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
       return;
     }
 
+    const sysConfig = loadSystemConfig();
+    const lib = sysConfig.activityLibrary || [];
+    let autoSum = 0;
+
+    // 尝试在门票库中匹配单价
+    extractedList.forEach((extractedName) => {
+      const cleanTarget = extractedName.replace(/[NZD0-9/人()（）+]/g, '').trim().toLowerCase();
+      const matched = lib.find((act) => {
+        const cleanLib = act.name.replace(/[NZD0-9/人()（）+]/g, '').trim().toLowerCase();
+        return cleanLib.includes(cleanTarget) || cleanTarget.includes(cleanLib);
+      });
+      if (matched) {
+        autoSum += matched.adultPrice;
+      }
+    });
+
     const mergedText = extractedList.join('；');
     onChange({
       ...activityQuote,
       includedActivities: extractedList,
       customActivityText: mergedText,
+      adultPrice: autoSum > 0 ? autoSum : activityQuote.adultPrice,
     });
   };
 

@@ -275,7 +275,7 @@ export function App() {
                 <ActivityConfig
                   activityQuote={quoteDoc.activityQuote}
                   itinerary={quoteDoc.itinerary}
-                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, activityQuote: updated })}
+                  onChange={(updated) => setQuoteDoc(prev => ({ ...prev, activityQuote: updated }))}
                   onOpenLibrary={() => setIsLibraryOpen(true)}
                 />
               )}
@@ -556,7 +556,7 @@ export function App() {
         onClose={() => setIsLibraryOpen(false)}
         activityQuote={quoteDoc.activityQuote}
         activityLibrary={systemConfig.activityLibrary}
-        onUpdateQuote={(updated) => setQuoteDoc({ ...quoteDoc, activityQuote: updated })}
+        onUpdateQuote={(updated) => setQuoteDoc(prev => ({ ...prev, activityQuote: updated }))}
       />
 
       {/* 业务参数与价格设置弹窗 */}
