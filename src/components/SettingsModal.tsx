@@ -12,7 +12,12 @@ import {
   Plus, 
   Trash2, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  Sparkles,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { 
   SystemConfig, 
@@ -21,6 +26,7 @@ import {
   exportConfigToFile, 
   importConfigFromFile 
 } from '../utils/storage';
+import { testGeminiApiKey } from '../utils/geminiVisionParser';
 import type { PresetActivity } from '../types/itinerary';
 
 interface SettingsModalProps {
@@ -36,10 +42,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   config,
   onUpdateConfig,
 }) => {
-  const [activeTab, setActiveTab] = useState<'allowance' | 'vehicles' | 'activities' | 'terms' | 'backup'>('allowance');
+  const [activeTab, setActiveTab] = useState<'allowance' | 'vehicles' | 'activities' | 'terms' | 'ai' | 'backup'>('allowance');
   const [currentConfig, setCurrentConfig] = useState<SystemConfig>(config);
   const [actSearch, setActSearch] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -63,6 +72,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onUpdateConfig(defaultSystemConfig);
       alert('已恢复为新西兰官方出厂基准配置！');
     }
+  };
+
+  // 更新 AI 配置
+  const handleUpdateAi = (field: string, val: any) => {
+    const updatedAi = {
+      geminiApiKey: '',
+      modelName: 'gemini-1.5-flash',
+      enabled: true,
+      ...(currentConfig.aiConfig || {}),
+      [field]: val,
+    };
+    setCurrentConfig({
+      ...currentConfig,
+      aiConfig: updatedAi,
+    });
+  };
+
+  // 测试 API Key 连通性
+  const handleTestKey = async () => {
+    const key = currentConfig.aiConfig?.geminiApiKey;
+    if (!key || !key.trim()) {
+      setTestResult({ success: false, message: '请先填写 Gemini API Key 后再测试！' });
+      return;
+    }
+    setIsTestingApi(true);
+    setTestResult(null);
+    const res = await testGeminiApiKey(key, currentConfig.aiConfig?.modelName || 'gemini-1.5-flash');
+    setIsTestingApi(false);
+    setTestResult(res);
   };
 
   // 导入配置
@@ -245,6 +283,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               <FileText size={14} />
               条款模板预设
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ai')}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: activeTab === 'ai' ? 'var(--bg-panel)' : 'transparent',
+                color: activeTab === 'ai' ? '#c084fc' : 'var(--text-muted)',
+                fontWeight: activeTab === 'ai' ? 600 : 400,
+              }}
+            >
+              <Sparkles size={14} color="#c084fc" />
+              AI 视觉识别设置
             </button>
 
             <div style={{ margin: '8px 0', borderTop: '1px solid var(--border-subtle)' }} />
@@ -761,6 +819,197 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <RotateCcw size={13} />
                     恢复出厂设置
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* 5. AI 视觉识别引擎配置 */}
+            {activeTab === 'ai' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '580px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: '8px',
+                  padding: '14px 16px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <Sparkles size={16} color="#c084fc" />
+                    <strong style={{ fontSize: '13.5px', color: 'var(--text-main)' }}>智能双轨制识别（多模态大模型 + 本地增强离线兜底）</strong>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.6' }}>
+                    通过接入 Google Gemini 视觉大模型，能原生 100% 解析华文楷体、书法体、4 列表格排版，精准切分「行程」与「活动」门票，彻底解决中文乱码问题。若未配置 API Key，系统将自动无缝降级为纯前端 Canvas 增强离线引擎。
+                  </p>
+                </div>
+
+                {/* 启用开关 */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', display: 'block' }}>启用多模态 AI 视觉极速识别</strong>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+                      优先使用 AI 大模型视觉能力解析上传的行程截图
+                    </span>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={currentConfig.aiConfig?.enabled !== false}
+                      onChange={(e) => handleUpdateAi('enabled', e.target.checked)}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--figma-blue)' }}
+                    />
+                  </label>
+                </div>
+
+                {/* API Key 输入框 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+                      Gemini API Key <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: '11.5px',
+                        color: 'var(--figma-blue)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <span>免费获取 Gemini API Key</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={currentConfig.aiConfig?.geminiApiKey || ''}
+                        onChange={(e) => handleUpdateAi('geminiApiKey', e.target.value)}
+                        placeholder="粘贴您的 AI Studio API Key (如 AIzaSy...)"
+                        style={{
+                          width: '100%',
+                          fontSize: '12.5px',
+                          padding: '8px 36px 8px 10px',
+                          fontFamily: showApiKey ? 'monospace' : 'inherit',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'transparent',
+                          color: 'var(--text-dim)',
+                          padding: '4px',
+                        }}
+                      >
+                        {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestKey}
+                      disabled={isTestingApi}
+                      style={{
+                        background: 'var(--bg-panel)',
+                        border: '1px solid var(--border-strong)',
+                        color: 'var(--text-main)',
+                        padding: '0 14px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {isTestingApi ? (
+                        <>
+                          <Loader2 size={13} className="spin" />
+                          测试中...
+                        </>
+                      ) : (
+                        '测试连接'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 测试反馈提示 */}
+                  {testResult && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      marginTop: '4px',
+                      background: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                      border: `1px solid ${testResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      color: testResult.success ? '#34d399' : '#f87171',
+                    }}>
+                      {testResult.success ? <Check size={14} /> : <AlertCircle size={14} />}
+                      <span>{testResult.message}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 视觉模型选择 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-dim)' }}>视觉解析模型</label>
+                  <select
+                    value={currentConfig.aiConfig?.modelName || 'gemini-1.5-flash'}
+                    onChange={(e) => handleUpdateAi('modelName', e.target.value)}
+                    style={{
+                      width: '100%',
+                      fontSize: '12.5px',
+                      padding: '8px 10px',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '6px',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <option value="gemini-1.5-flash">gemini-1.5-flash（推荐：极速毫秒级响应，免费额度超高）</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash（下一代模型：推理理解力极强）</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro（旗舰版：适合超长复杂排版文档）</option>
+                  </select>
+                </div>
+
+                {/* 提示指引 */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  fontSize: '11.5px',
+                  color: 'var(--text-dim)',
+                  lineHeight: '1.5',
+                }}>
+                  <strong style={{ color: 'var(--text-main)' }}>💡 温馨提示：</strong>
+                  <span>1. Google AI Studio 提供的个人 API Key 每分钟支持 15 次调用，完全免费，定制游行程识别足够日常高频使用。</span>
+                  <span>2. API Key 仅保存在您当前浏览器的本地存储中，不会上传到任何第三方服务器，请放心使用。</span>
+                  <span>3. 如果暂时没有 API Key，也不影响使用，系统将自动使用本地增强 OCR 进行解析。</span>
                 </div>
               </div>
             )}

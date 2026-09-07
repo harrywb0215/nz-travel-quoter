@@ -23,6 +23,13 @@ export interface GuideAllowanceConfig {
   quoteValidityWeeks: number;    // 报价有效期周数 (如 2)
 }
 
+// AI 视觉识别配置
+export interface AIConfig {
+  geminiApiKey: string;
+  modelName: string;
+  enabled: boolean;
+}
+
 // 系统全部业务参数
 export interface SystemConfig {
   guideAllowance: GuideAllowanceConfig;
@@ -31,6 +38,7 @@ export interface SystemConfig {
   defaultInclusions: string[];
   defaultExclusions: string[];
   defaultNotes: string[];
+  aiConfig?: AIConfig;
 }
 
 const STORAGE_KEYS = {
@@ -68,9 +76,15 @@ export const defaultSystemConfig: SystemConfig = {
     '不含旅游保险（建议自行购买）',
   ],
   defaultNotes: [
-    '工作时间：全天不超过10小时，超时部分按照 NZD150/小时（含GST）计算',
-    '此报价有效期为2周，报价以最终航班时间为准，目前并未座任何预留',
+    '工作时间：全天不超过10小时，超时部分按照 NZD 150/小时 计算。',
+    '此报价有效期为 2周，报价以最终航班时间为准，保留调整权利。',
+    '因不可抗力因素（天气/航班延误等）导致的行程变更，车队将协助协调。',
   ],
+  aiConfig: {
+    geminiApiKey: '',
+    modelName: 'gemini-1.5-flash',
+    enabled: true,
+  },
 };
 
 // 1. 读取业务配置
@@ -89,6 +103,8 @@ export function getSystemConfig(): SystemConfig {
     return defaultSystemConfig;
   }
 }
+
+export const loadSystemConfig = getSystemConfig;
 
 // 2. 保存业务配置
 export function saveSystemConfig(cfg: SystemConfig): void {
