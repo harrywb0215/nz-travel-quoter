@@ -26,6 +26,30 @@ export const figure1Itinerary: ItineraryItem[] = [
 export const standard18DaysQuoteDoc: QuoteDocument = {
   title: '26.12.18 南北岛18天',
   psNote: 'PS： 26春节：2.16-26 附加费',
+  quoterInfo: {
+    companyName: '新西兰 Harry 精品定制车队',
+    agentName: 'Harry 导游',
+    phone: '+64 21 888 666',
+    wechat: 'harrywb0215',
+    license: 'NZTA SPSL 认证商业运营车队',
+  },
+  clientInfo: {
+    name: '刘齐 一家4口',
+    phone: '13800000000',
+    wechat: 'liuqi_nz_travel',
+    adultCount: 4,
+    childCount: 0,
+    startDate: '2026-12-18',
+    endDate: '2027-01-04',
+    specialDemands: '南北岛深度定制慢游、需要行李拖斗、要求16座奔驰或7座Alphard',
+  },
+  quoteMeta: {
+    quoteNo: 'NZQ-202612-001',
+    createDate: '2026-09-07',
+    expiryWeeks: 2,
+    exchangeRateToRmb: 4.35,
+    status: 'draft',
+  },
   includeCostBreakdown: true,
   updatedAt: '2026-09-07',
   itinerary: [

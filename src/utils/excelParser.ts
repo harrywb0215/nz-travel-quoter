@@ -34,20 +34,20 @@ export async function parseItineraryExcel(file: File): Promise<ItineraryItem[]> 
           if (!row || !Array.isArray(row)) continue;
 
           for (let c = 0; c < row.length; c++) {
-            const val = String(row[c] || '').trim();
-            if (val.includes('日期') || val.includes('时间') || val.includes('Date')) {
+            const val = String(row[c] || '').trim().toLowerCase();
+            if (val.includes('日期') || val.includes('时间') || val.includes('date') || val.includes('time')) {
               dateColIdx = c;
               headerRowIdx = r;
             }
-            if (val.includes('行程') || val.includes('路线') || val.includes('Itinerary') || val.includes('Route')) {
+            if (val.includes('行程') || val.includes('路线') || val.includes('itinerary') || val.includes('route') || val.includes('journey') || val.includes('destination')) {
               routeColIdx = c;
               headerRowIdx = r;
             }
-            if (val.includes('活动') || val.includes('球场') || val.includes('门票') || val.includes('Activity')) {
+            if (val.includes('活动') || val.includes('球场') || val.includes('门票') || val.includes('activity') || val.includes('attraction') || val.includes('tour') || val.includes('golf')) {
               activityColIdx = c;
               headerRowIdx = r;
             }
-            if (val.includes('天数') || val.includes('Day')) {
+            if (val.includes('天数') || val.includes('day') || val.includes('days')) {
               dayColIdx = c;
             }
           }

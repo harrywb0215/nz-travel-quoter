@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Header } from './components/Header';
+import { OverviewDashboard } from './components/Dashboard/OverviewDashboard';
 import { VehicleConfig } from './components/ConfigPanel/VehicleConfig';
 import { ActivityConfig } from './components/ConfigPanel/ActivityConfig';
 import { ItineraryManager } from './components/ConfigPanel/ItineraryManager';
@@ -10,11 +11,27 @@ import { standard18DaysQuoteDoc } from './constants/initialData';
 import { getSystemConfig, SystemConfig } from './utils/storage';
 import type { QuoteDocument, ItineraryItem } from './types/itinerary';
 import { exportQuoteToExcel } from './utils/excelExporter';
-import { Car, Ticket, Calendar, ZoomIn, ZoomOut, Maximize2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  SlidersHorizontal, 
+  FileCheck2, 
+  Car, 
+  Ticket, 
+  Calendar, 
+  ZoomIn, 
+  ZoomOut, 
+  Maximize2, 
+  Sparkles, 
+  CheckCircle2 
+} from 'lucide-react';
 
 export function App() {
   const [quoteDoc, setQuoteDoc] = useState<QuoteDocument>(standard18DaysQuoteDoc);
   const [systemConfig, setSystemConfig] = useState<SystemConfig>(getSystemConfig());
+  
+  // 核心视图模式：overview (首页概览与图片识别，默认) | editor (双栏工作台) | preview (纯预览)
+  const [viewMode, setViewMode] = useState<'overview' | 'editor' | 'preview'>('overview');
+  
   const [activeTab, setActiveTab] = useState<'vehicle' | 'activity' | 'itinerary'>('vehicle');
   const [scale, setScale] = useState<number>(0.92);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -51,7 +68,7 @@ export function App() {
 
   return (
     <div className="app-container">
-      {/* 1. 顶部 Figma 风格工具栏 */}
+      {/* 1. 顶部 Header */}
       <Header
         quoteDoc={quoteDoc}
         onUpdateDoc={setQuoteDoc}
@@ -61,152 +78,278 @@ export function App() {
         isExporting={isExporting}
       />
 
-      {/* 2. 主工作区：左侧配置面板 + 右侧高保真画布 */}
-      <div className="main-workspace">
-        {/* 左侧 Inspector 面板 */}
-        <aside className="left-inspector">
-          {/* Tab 导航切换 */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-topbar)',
-            padding: '4px 8px',
-            gap: '4px',
-          }}>
-            <button
-              onClick={() => setActiveTab('vehicle')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                background: activeTab === 'vehicle' ? 'var(--bg-panel)' : 'transparent',
-                color: activeTab === 'vehicle' ? '#fbbf24' : 'var(--text-muted)',
-                border: activeTab === 'vehicle' ? '1px solid var(--border-subtle)' : '1px solid transparent',
-              }}
-            >
-              <Car size={14} />
-              1. 用车报价
-            </button>
+      {/* 2. 页面主视图导航控制器 (清晰的三段式业务心智) */}
+      <div style={{
+        background: 'var(--bg-topbar)',
+        borderBottom: '1px solid var(--border-subtle)',
+        padding: '6px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        zIndex: 15,
+      }}>
+        <div style={{
+          display: 'flex',
+          background: 'var(--bg-input)',
+          padding: '3px',
+          borderRadius: '8px',
+          border: '1px solid var(--border-subtle)',
+          gap: '3px',
+        }}>
+          <button
+            onClick={() => setViewMode('overview')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: viewMode === 'overview' ? 'var(--figma-blue)' : 'transparent',
+              color: viewMode === 'overview' ? '#ffffff' : 'var(--text-muted)',
+            }}
+          >
+            <LayoutDashboard size={14} />
+            1. 首页与智能识别 (报价方/客户/图片识别)
+          </button>
 
-            <button
-              onClick={() => setActiveTab('activity')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                background: activeTab === 'activity' ? 'var(--bg-panel)' : 'transparent',
-                color: activeTab === 'activity' ? '#38bdf8' : 'var(--text-muted)',
-                border: activeTab === 'activity' ? '1px solid var(--border-subtle)' : '1px solid transparent',
-              }}
-            >
-              <Ticket size={14} />
-              2. 活动门票
-            </button>
+          <button
+            onClick={() => setViewMode('editor')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: viewMode === 'editor' ? 'var(--figma-blue)' : 'transparent',
+              color: viewMode === 'editor' ? '#ffffff' : 'var(--text-muted)',
+            }}
+          >
+            <SlidersHorizontal size={14} />
+            2. 参数微调工作台 (用车/活动/行程管理)
+          </button>
 
-            <button
-              onClick={() => setActiveTab('itinerary')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                background: activeTab === 'itinerary' ? 'var(--bg-panel)' : 'transparent',
-                color: activeTab === 'itinerary' ? '#34d399' : 'var(--text-muted)',
-                border: activeTab === 'itinerary' ? '1px solid var(--border-subtle)' : '1px solid transparent',
-              }}
-            >
-              <Calendar size={14} />
-              3. 行程管理
-            </button>
-          </div>
+          <button
+            onClick={() => setViewMode('preview')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: viewMode === 'preview' ? 'var(--figma-blue)' : 'transparent',
+              color: viewMode === 'preview' ? '#ffffff' : 'var(--text-muted)',
+            }}
+          >
+            <FileCheck2 size={14} />
+            3. 最终标准 Excel 预览与下载
+          </button>
+        </div>
 
-          {/* Tab 对应内容区 */}
-          <div style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
-            {activeTab === 'vehicle' && (
-              <VehicleConfig
-                vehicleQuote={quoteDoc.vehicleQuote}
-                itinerary={quoteDoc.itinerary}
-                vehicleList={systemConfig.vehicleList}
-                onChange={(updated) => setQuoteDoc({ ...quoteDoc, vehicleQuote: updated })}
-              />
-            )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-dim)' }}>
+          <span>当前单据: <strong style={{ color: 'var(--text-main)' }}>{quoteDoc.title}</strong></span>
+          <span>•</span>
+          <span>客户: <strong style={{ color: '#60a5fa' }}>{quoteDoc.clientInfo?.name}</strong></span>
+          <span>•</span>
+          <span>行程: <strong style={{ color: '#34d399' }}>{quoteDoc.itinerary?.length} 天</strong></span>
+        </div>
+      </div>
 
-            {activeTab === 'activity' && (
-              <ActivityConfig
-                activityQuote={quoteDoc.activityQuote}
-                itinerary={quoteDoc.itinerary}
-                onChange={(updated) => setQuoteDoc({ ...quoteDoc, activityQuote: updated })}
-                onOpenLibrary={() => setIsLibraryOpen(true)}
-              />
-            )}
+      {/* 3. 页面主工作区切换 */}
+      {viewMode === 'overview' && (
+        <OverviewDashboard
+          quoteDoc={quoteDoc}
+          onUpdateDoc={setQuoteDoc}
+          onSwitchToPreview={() => setViewMode('preview')}
+          onExportExcel={handleExportExcel}
+        />
+      )}
 
-            {activeTab === 'itinerary' && (
-              <ItineraryManager
-                itinerary={quoteDoc.itinerary}
-                onChange={(updated) => setQuoteDoc({ ...quoteDoc, itinerary: updated })}
-              />
-            )}
-          </div>
-        </aside>
+      {viewMode === 'editor' && (
+        <div className="main-workspace">
+          {/* 左侧 Inspector 面板 */}
+          <aside className="left-inspector">
+            <div style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'var(--bg-topbar)',
+              padding: '4px 8px',
+              gap: '4px',
+            }}>
+              <button
+                onClick={() => setActiveTab('vehicle')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: activeTab === 'vehicle' ? 'var(--bg-panel)' : 'transparent',
+                  color: activeTab === 'vehicle' ? '#fbbf24' : 'var(--text-muted)',
+                  border: activeTab === 'vehicle' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+                }}
+              >
+                <Car size={14} />
+                用车报价
+              </button>
 
-        {/* 右侧所见即所得图二预览视口 */}
-        <main className="right-canvas-viewport">
-          {/* 画布悬浮控制条 */}
+              <button
+                onClick={() => setActiveTab('activity')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: activeTab === 'activity' ? 'var(--bg-panel)' : 'transparent',
+                  color: activeTab === 'activity' ? '#38bdf8' : 'var(--text-muted)',
+                  border: activeTab === 'activity' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+                }}
+              >
+                <Ticket size={14} />
+                活动门票
+              </button>
+
+              <button
+                onClick={() => setActiveTab('itinerary')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: activeTab === 'itinerary' ? 'var(--bg-panel)' : 'transparent',
+                  color: activeTab === 'itinerary' ? '#34d399' : 'var(--text-muted)',
+                  border: activeTab === 'itinerary' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+                }}
+              >
+                <Calendar size={14} />
+                行程管理
+              </button>
+            </div>
+
+            <div style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
+              {activeTab === 'vehicle' && (
+                <VehicleConfig
+                  vehicleQuote={quoteDoc.vehicleQuote}
+                  itinerary={quoteDoc.itinerary}
+                  vehicleList={systemConfig.vehicleList}
+                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, vehicleQuote: updated })}
+                />
+              )}
+
+              {activeTab === 'activity' && (
+                <ActivityConfig
+                  activityQuote={quoteDoc.activityQuote}
+                  itinerary={quoteDoc.itinerary}
+                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, activityQuote: updated })}
+                  onOpenLibrary={() => setIsLibraryOpen(true)}
+                />
+              )}
+
+              {activeTab === 'itinerary' && (
+                <ItineraryManager
+                  itinerary={quoteDoc.itinerary}
+                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, itinerary: updated })}
+                />
+              )}
+            </div>
+          </aside>
+
+          {/* 右侧所见即所得图二预览画布 */}
+          <main className="right-canvas-viewport">
+            <div className="canvas-floating-controls">
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={13} color="var(--figma-amber)" />
+                所见即所得画布（单元格支持双击直接编辑）
+              </span>
+
+              <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={() => setScale((s) => Math.max(0.6, Number((s - 0.1).toFixed(2))))}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="缩小"
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <span style={{ fontSize: '11px', minWidth: '34px', textAlign: 'center', color: 'var(--text-dim)' }}>
+                  {Math.round(scale * 100)}%
+                </span>
+                <button
+                  onClick={() => setScale((s) => Math.min(1.4, Number((s + 0.1).toFixed(2))))}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="放大"
+                >
+                  <ZoomIn size={14} />
+                </button>
+                <button
+                  onClick={() => setScale(0.92)}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="重置缩放"
+                >
+                  <Maximize2 size={13} />
+                </button>
+              </div>
+            </div>
+
+            <QuotePaperPreview
+              quoteDoc={quoteDoc}
+              onUpdateItineraryItem={handleUpdateItineraryItem}
+              onUpdatePsNote={(ps) => setQuoteDoc({ ...quoteDoc, psNote: ps })}
+              scale={scale}
+            />
+          </main>
+        </div>
+      )}
+
+      {viewMode === 'preview' && (
+        <main className="right-canvas-viewport" style={{ flex: 1, padding: '32px' }}>
           <div className="canvas-floating-controls">
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Sparkles size={13} color="var(--figma-amber)" />
-              标准格式预览（对齐 26.12.18 南北岛18天.xlsx）
+              标准格式预览（完全对齐 26.12.18 南北岛18天.xlsx）
             </span>
 
             <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
 
-            {/* 缩放控制器 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={() => setScale((s) => Math.max(0.6, Number((s - 0.1).toFixed(2))))}
-                style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
-                title="缩小"
-              >
-                <ZoomOut size={14} />
-              </button>
-              <span style={{ fontSize: '11px', minWidth: '34px', textAlign: 'center', color: 'var(--text-dim)' }}>
-                {Math.round(scale * 100)}%
-              </span>
-              <button
-                onClick={() => setScale((s) => Math.min(1.4, Number((s + 0.1).toFixed(2))))}
-                style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
-                title="放大"
-              >
-                <ZoomIn size={14} />
-              </button>
-              <button
-                onClick={() => setScale(0.92)}
-                style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
-                title="重置缩放"
-              >
-                <Maximize2 size={13} />
-              </button>
-            </div>
+            <button
+              onClick={handleExportExcel}
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <FileCheck2 size={13} />
+              立即下载此 Excel
+            </button>
           </div>
 
-          {/* 纸张主体 */}
           <QuotePaperPreview
             quoteDoc={quoteDoc}
             onUpdateItineraryItem={handleUpdateItineraryItem}
@@ -214,7 +357,7 @@ export function App() {
             scale={scale}
           />
         </main>
-      </div>
+      )}
 
       {/* 导出成功气泡通知 */}
       {showToast && (
