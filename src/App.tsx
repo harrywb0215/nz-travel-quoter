@@ -166,6 +166,7 @@ export function App() {
           quoteDoc={quoteDoc}
           onUpdateDoc={setQuoteDoc}
           onSwitchToPreview={() => setViewMode('preview')}
+          onSwitchToEditor={() => setViewMode('editor')}
           onExportExcel={handleExportExcel}
         />
       )}

@@ -26,6 +26,7 @@ interface OverviewDashboardProps {
   quoteDoc: QuoteDocument;
   onUpdateDoc: (newDoc: QuoteDocument) => void;
   onSwitchToPreview: () => void;
+  onSwitchToEditor: () => void;
   onExportExcel: () => void;
 }
 
@@ -33,6 +34,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   quoteDoc,
   onUpdateDoc,
   onSwitchToPreview,
+  onSwitchToEditor,
   onExportExcel,
 }) => {
   const [ingestionTab, setIngestionTab] = useState<'image' | 'excel' | 'text'>('image');
@@ -40,7 +42,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrStatusText, setOcrStatusText] = useState('');
   const [pastedText, setPastedText] = useState('');
-  const [recognizedItems, setRecognizedItems] = useState<ItineraryItem[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
@@ -79,28 +81,30 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     try {
       setIsOcrProcessing(true);
       setOcrProgress(10);
-      setOcrStatusText('正在读取图片并准备中英文 OCR 引擎...');
+      setOcrStatusText('正在准备中英文 OCR 图像识别引擎...');
 
       const result = await recognizeItineraryFromImage(file, (p, status) => {
         setOcrProgress(p);
         setOcrStatusText(status);
       });
 
-      if (result.items.length === 0) {
-        alert('未能从图片中自动解析出天数结构，请尝试使用“文本粘贴识别”或上传 Excel');
+      if (!result.items || result.items.length === 0) {
+        setErrorMessage('未能从图片中自动解析出天数结构。建议：请确保图片字迹清晰，或尝试将行程文字复制后使用“微信/文本智能粘贴”识别。');
         return;
       }
 
-      setRecognizedItems(result.items);
-      // 直接应用到主行程中
+      // 识别成功：更新主文档并立即跳转到「参数微调工作台」
       onUpdateDoc({
         ...quoteDoc,
         itinerary: result.items,
         title: `${clientInfo.name || '客户'} 新西兰行程报价单`,
       });
-      alert(`图片识别成功！已自动提取出 ${result.items.length} 天中英文行程明细。`);
+
+      // 立即自动跳转到参数微调工作台 (图二)
+      onSwitchToEditor();
     } catch (err: any) {
-      alert('识别失败：' + (err.message || '请尝试上传更清晰的截图'));
+      console.error('OCR 识别报错:', err);
+      setErrorMessage(`图片识别出错：${err.message || '识别引擎未能成功处理该图片'}。建议上传更清晰的截图或使用 Excel 导入。`);
     } finally {
       setIsOcrProcessing(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
@@ -114,14 +118,23 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
     try {
       const items = await parseItineraryExcel(file);
+      if (!items || items.length === 0) {
+        setErrorMessage('Excel 中未识别到有效的行程行。请确认表格中是否包含“日期”、“行程”或“活动”等表头列。');
+        return;
+      }
+
+      // 导入成功：更新主文档并立即跳转到「参数微调工作台」
       onUpdateDoc({
         ...quoteDoc,
         itinerary: items,
         title: file.name.replace(/\.[^/.]+$/, ''),
       });
-      alert(`Excel 解析成功！已提取 ${items.length} 天行程内容。`);
+
+      // 立即自动跳转到参数微调工作台 (图二)
+      onSwitchToEditor();
     } catch (err: any) {
-      alert('Excel 解析失败：' + (err.message || '格式错误'));
+      console.error('Excel 导入报错:', err);
+      setErrorMessage(`Excel 导入解析出错：${err.message || '文件可能损坏或格式不兼容'}。请检查文件是否为标准 .xlsx / .xls / .csv 格式。`);
     } finally {
       if (excelInputRef.current) excelInputRef.current.value = '';
     }
@@ -130,19 +143,27 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   // 处理纯文本一键提取
   const handleParseText = () => {
     if (!pastedText.trim()) {
-      alert('请先输入或粘贴中英文行程文字！');
+      setErrorMessage('请输入或粘贴中英文行程文字！');
       return;
     }
-    const items = parsePlainTextToItinerary(pastedText);
-    if (items.length === 0) {
-      alert('未能识别出行程天数，请确保文字包含“Day 1”、“D1”、“第1天”或日期标记');
-      return;
+    try {
+      const items = parsePlainTextToItinerary(pastedText);
+      if (!items || items.length === 0) {
+        setErrorMessage('未能从输入文字中识别出天数。请确保包含“Day 1”、“D1”、“第1天”或类似日期标记。');
+        return;
+      }
+
+      // 解析成功：更新主文档并立即跳转到「参数微调工作台」
+      onUpdateDoc({
+        ...quoteDoc,
+        itinerary: items,
+      });
+
+      // 立即自动跳转到参数微调工作台 (图二)
+      onSwitchToEditor();
+    } catch (err: any) {
+      setErrorMessage(`文本拆解出错：${err.message || '未知错误'}`);
     }
-    onUpdateDoc({
-      ...quoteDoc,
-      itinerary: items,
-    });
-    alert(`文本智能解析成功！已提取 ${items.length} 天行程明细。`);
   };
 
   return (
@@ -651,7 +672,7 @@ Day 3 12月20日 皇后镇 天空缆车"
           </div>
 
           <button
-            onClick={onSwitchToPreview}
+            onClick={onSwitchToEditor}
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid var(--border-subtle)',
@@ -664,11 +685,75 @@ Day 3 12月20日 皇后镇 天空缆车"
               gap: '6px',
             }}
           >
-            <span>进入画布微调 & 导出</span>
+            <span>进入参数微调工作台</span>
             <ArrowRight size={13} />
           </button>
         </div>
       </div>
+
+      {/* 识别/导入出错醒目弹窗 */}
+      {errorMessage && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+        }}>
+          <div style={{
+            background: 'var(--bg-topbar)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '12px',
+            width: '460px',
+            maxWidth: '90vw',
+            padding: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ef4444',
+                flexShrink: 0,
+              }}>
+                <AlertCircle size={20} />
+              </div>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)' }}>识别或导入提示</h3>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+              {errorMessage}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setErrorMessage(null)}
+                style={{
+                  background: 'var(--figma-blue)',
+                  color: '#ffffff',
+                  padding: '7px 20px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
