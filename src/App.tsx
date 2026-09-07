@@ -180,6 +180,7 @@ export function App() {
           onSwitchToPreview={() => setViewMode('preview')}
           onSwitchToEditor={() => setViewMode('editor')}
           onExportExcel={handleExportExcel}
+          onOpenActivityLibrary={() => setIsLibraryOpen(true)}
         />
       )}
 

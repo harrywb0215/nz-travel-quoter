@@ -16,7 +16,9 @@ import {
   Eye, 
   AlertCircle,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Ticket,
+  Car
 } from 'lucide-react';
 import type { QuoteDocument, QuoterInfo, ClientInfo, QuoteMeta, ItineraryItem } from '../../types/itinerary';
 import { recognizeItineraryFromImage, parsePlainTextToItinerary } from '../../utils/imageOcrParser';
@@ -25,12 +27,65 @@ import { loadSystemConfig } from '../../utils/storage';
 import { parseItineraryWithGeminiVision } from '../../utils/geminiVisionParser';
 import { autoCalculateCostBreakdown } from '../../utils/costCalculator';
 
+// 常用经典活动套票预设（方便导游一键极速选定）
+const PRESET_ACTIVITY_PACKAGES = [
+  {
+    id: 'none',
+    name: '纯用车行程 (不含门票，NZD 0/人)',
+    adultPrice: 0,
+    activities: [] as string[],
+    customText: '暂不含门票与自选玩乐项目（纯用车包车服务）',
+  },
+  {
+    id: 'classic-4',
+    name: '经典必游 4 项套餐 (NZD 469/人)',
+    adultPrice: 469,
+    activities: [
+      '霍比特村游览',
+      '怀托摩萤火虫洞',
+      'TSS 游湖',
+      '天空缆车',
+    ],
+    customText: '霍比特村游览；怀托摩萤火虫洞；TSS 游湖；天空缆车',
+  },
+  {
+    id: 'south-deep',
+    name: '南岛深度自然套票 (NZD 850/人)',
+    adultPrice: 850,
+    activities: [
+      '凯库拉观鲸',
+      '塔斯曼冰河探险',
+      '峡湾游轮 + 游轮自助',
+      '出海看海豚',
+      '天空缆车',
+    ],
+    customText: '凯库拉观鲸；塔斯曼冰河探险；峡湾游轮 + 游轮自助；出海看海豚；天空缆车',
+  },
+  {
+    id: 'full-luxury',
+    name: '全套 8 项轻奢游玩套餐 (NZD 2,080/人)',
+    adultPrice: 2080,
+    activities: [
+      '凯库拉观鲸',
+      'Alpacas farm',
+      '直升机飞峡湾 + 峡湾游轮+ 午餐（餐盒）',
+      '山顶缆车',
+      'TSS 游湖',
+      '霍比特村游览',
+      'Wai O Tapu 地热公园门票',
+      '怀托摩萤火虫洞',
+    ],
+    customText: '凯库拉观鲸，Alpacas farm， 直升机飞峡湾 + 峡湾游轮+ 午餐（餐盒）；山顶缆车；TSS 游湖；霍比特村游览，Wai O Tapu 地热公园门票；怀托摩萤火虫洞',
+  },
+];
+
 interface OverviewDashboardProps {
   quoteDoc: QuoteDocument;
   onUpdateDoc: (newDoc: QuoteDocument) => void;
   onSwitchToPreview: () => void;
   onSwitchToEditor: () => void;
   onExportExcel: () => void;
+  onOpenActivityLibrary?: () => void;
 }
 
 export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
@@ -39,6 +94,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onSwitchToPreview,
   onSwitchToEditor,
   onExportExcel,
+  onOpenActivityLibrary,
 }) => {
   const [ingestionTab, setIngestionTab] = useState<'image' | 'excel' | 'text'>('image');
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -89,6 +145,98 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     onUpdateDoc({
       ...quoteDoc,
       quoteMeta: { ...quoteMeta, [field]: val },
+    });
+  };
+
+  const systemConfig = React.useMemo(() => loadSystemConfig(), []);
+
+  // 匹配当前活动门票选中的预设套餐
+  const currentActivityPackageId = React.useMemo(() => {
+    if (activityQuote.adultPrice === 0 && (!activityQuote.includedActivities || activityQuote.includedActivities.length === 0)) {
+      return 'none';
+    }
+    const matched = PRESET_ACTIVITY_PACKAGES.find(pkg => 
+      pkg.id !== 'none' && pkg.adultPrice === activityQuote.adultPrice
+    );
+    return matched ? matched.id : 'custom';
+  }, [activityQuote.adultPrice, activityQuote.includedActivities]);
+
+  // 1. 切换报价有效期（下拉框）并自动同步说明条款
+  const handleChangeExpiryWeeks = (weeks: number) => {
+    const textMap: Record<number, string> = {
+      0.5: '3天',
+      1: '1周',
+      2: '2周',
+      3: '3周',
+      4: '1个月',
+    };
+    const weeksText = textMap[weeks] || `${weeks}周`;
+    
+    const updatedNotes = (vehicleQuote.notes || []).map(note => {
+      if (note.includes('有效期')) {
+        return `此报价有效期为 ${weeksText}，报价以最终航班时间为准，保留调整权利。`;
+      }
+      return note;
+    });
+
+    onUpdateDoc({
+      ...quoteDoc,
+      quoteMeta: {
+        ...quoteMeta,
+        expiryWeeks: weeks,
+      },
+      vehicleQuote: {
+        ...vehicleQuote,
+        notes: updatedNotes,
+      }
+    });
+  };
+
+  // 2. 切换车型并自动重新核算车费
+  const handleChangeVehicleModel = (newModel: string) => {
+    const sysConfig = loadSystemConfig();
+    const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+      itinerary,
+      newModel,
+      sysConfig
+    );
+    const updatedInclusions = (vehicleQuote.inclusions || []).map(inc => {
+      if (inc.startsWith('车：')) {
+        return `车：${newModel}，燃油，机场卡，车辆保险`;
+      }
+      return inc;
+    });
+
+    onUpdateDoc({
+      ...quoteDoc,
+      itinerary: updatedItinerary,
+      vehicleQuote: {
+        ...vehicleQuote,
+        vehicleModel: newModel,
+        totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
+        carDays: updatedItinerary.filter(i => !i.noCar).length,
+        inclusions: updatedInclusions,
+      }
+    });
+  };
+
+  // 3. 切换活动门票套餐
+  const handleSelectActivityPackage = (pkgId: string) => {
+    if (pkgId === 'open-modal') {
+      onOpenActivityLibrary?.();
+      return;
+    }
+    const targetPkg = PRESET_ACTIVITY_PACKAGES.find(p => p.id === pkgId);
+    if (!targetPkg) return;
+
+    onUpdateDoc({
+      ...quoteDoc,
+      activityQuote: {
+        ...activityQuote,
+        adultPrice: targetPkg.adultPrice,
+        includedActivities: targetPkg.activities,
+        customActivityText: targetPkg.customText,
+      }
     });
   };
 
@@ -370,44 +518,121 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               </div>
               <div>
                 <label style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>有效期</label>
-                <input
-                  type="text"
-                  value={`${quoteMeta?.expiryWeeks || 2} 周内有效`}
-                  readOnly
-                  style={{ width: '100%', fontSize: '12px', background: 'rgba(255,255,255,0.03)' }}
-                />
+                <select
+                  value={quoteMeta?.expiryWeeks ?? 2}
+                  onChange={(e) => handleChangeExpiryWeeks(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    fontSize: '12px',
+                    padding: '5px 8px',
+                    borderRadius: '6px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-main)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value={0.5}>3 天内有效 (紧急/旺季)</option>
+                  <option value={1}>1 周内有效 (7天)</option>
+                  <option value={2}>2 周内有效 (推荐/默认)</option>
+                  <option value={3}>3 周内有效 (21天)</option>
+                  <option value={4}>1 个月内有效 (30天)</option>
+                </select>
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>车型与用车报价 (NZD)</label>
-              <div style={{
-                background: 'rgba(255, 255, 0, 0.08)',
-                border: '1px solid rgba(255, 255, 0, 0.25)',
-                borderRadius: '6px',
-                padding: '6px 10px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <span style={{ fontSize: '12px', color: '#fef08a' }}>{vehicleQuote.vehicleModel}</span>
-                <strong style={{ fontSize: '14px', color: '#fbbf24' }}>NZD {vehicleQuote.totalPrice.toLocaleString()}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <label style={{ fontSize: '11px', color: 'var(--text-dim)' }}>车型与用车报价 (NZD)</label>
+                <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 600 }}>
+                  NZD {vehicleQuote.totalPrice.toLocaleString()}
+                </span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={vehicleQuote.vehicleModel}
+                  onChange={(e) => handleChangeVehicleModel(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: '12px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(255, 255, 0, 0.07)',
+                    border: '1px solid rgba(255, 255, 0, 0.28)',
+                    color: '#fef08a',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {(systemConfig.vehicleList || []).map((v) => (
+                    <option key={v.id} value={v.name} style={{ background: '#1e293b', color: '#ffffff' }}>
+                      {v.name}（南岛${v.southIslandPrice} / 北岛${v.northIslandPrice} • {v.capacity}）
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>活动门票核算 (NZD/人)</label>
-              <div style={{
-                background: 'rgba(13, 153, 255, 0.08)',
-                border: '1px solid rgba(13, 153, 255, 0.25)',
-                borderRadius: '6px',
-                padding: '6px 10px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <span style={{ fontSize: '12px', color: '#93c5fd' }}>成人人均门票</span>
-                <strong style={{ fontSize: '14px', color: '#60a5fa' }}>NZD {activityQuote.adultPrice}/人</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <label style={{ fontSize: '11px', color: 'var(--text-dim)' }}>活动门票核算 (NZD/人)</label>
+                <span style={{ fontSize: '12px', color: '#60a5fa', fontWeight: 600 }}>
+                  NZD {activityQuote.adultPrice}/人
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <select
+                  value={currentActivityPackageId}
+                  onChange={(e) => handleSelectActivityPackage(e.target.value)}
+                  style={{
+                    flex: 1,
+                    fontSize: '12px',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: 'rgba(13, 153, 255, 0.08)',
+                    border: '1px solid rgba(13, 153, 255, 0.28)',
+                    color: '#93c5fd',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {PRESET_ACTIVITY_PACKAGES.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id} style={{ background: '#1e293b', color: '#ffffff' }}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                  {currentActivityPackageId === 'custom' && (
+                    <option value="custom" style={{ background: '#1e293b', color: '#38bdf8' }}>
+                      自选组合 (已勾选 {activityQuote.includedActivities?.length || 0} 项，NZD {activityQuote.adultPrice}/人)
+                    </option>
+                  )}
+                  <option value="open-modal" style={{ background: '#0f172a', color: '#fbbf24', fontWeight: 600 }}>
+                    ⚙️ 自定义自由勾选... (打开门票库)
+                  </option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenActivityLibrary?.()}
+                  style={{
+                    background: 'rgba(13, 153, 255, 0.15)',
+                    border: '1px solid rgba(13, 153, 255, 0.3)',
+                    color: '#60a5fa',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title="打开活动门票库弹窗自由勾选微调"
+                >
+                  <Ticket size={13} />
+                  <span>选门票</span>
+                </button>
               </div>
             </div>
           </div>
