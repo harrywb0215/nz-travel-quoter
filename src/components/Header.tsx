@@ -96,49 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 中间：快捷模板与配置中心入口 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button
-          onClick={() => onUpdateDoc({ ...standard18DaysQuoteDoc })}
-          style={{
-            background: 'rgba(245, 158, 11, 0.18)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            color: '#fbbf24',
-            padding: '5px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: 600,
-          }}
-          title="载入 26.12.18 南北岛18天 官方标准模板"
-        >
-          <Sparkles size={13} />
-          标准模板 (南北岛18天)
-        </button>
 
-        <button
-          onClick={() => onUpdateDoc({
-            ...quoteDoc,
-            title: '客户原始行程单 (18天) 待报价',
-            itinerary: figure1Itinerary,
-            updatedAt: new Date().toISOString().slice(0, 10),
-          })}
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-main)',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-          }}
-          title="载入客户发来的纯行程单原表"
-        >
-          <RotateCcw size={13} />
-          客户原表 (图一)
-        </button>
 
         <button
           onClick={onOpenActivityLibrary}

@@ -322,41 +322,74 @@ export function App() {
       )}
 
       {viewMode === 'preview' && (
-        <main className="right-canvas-viewport" style={{ flex: 1, padding: '32px' }}>
-          <div className="canvas-floating-controls">
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Sparkles size={13} color="var(--figma-amber)" />
-              标准格式预览（完全对齐 26.12.18 南北岛18天.xlsx）
-            </span>
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas-bg)', display: 'flex', flexDirection: 'column' }}>
+          <main className="right-canvas-viewport" style={{ flex: 1, minHeight: '100%', padding: '24px 24px 100px' }}>
+            <div className="canvas-floating-controls">
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={13} color="var(--figma-amber)" />
+                标准格式预览（完全对齐 26.12.18 南北岛18天.xlsx）
+              </span>
 
-            <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
+              <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
 
-            <button
-              onClick={handleExportExcel}
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: '#ffffff',
-                padding: '4px 12px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <FileCheck2 size={13} />
-              立即下载此 Excel
-            </button>
-          </div>
+              {/* 缩放控制器 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={() => setScale((s) => Math.max(0.6, Number((s - 0.1).toFixed(2))))}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="缩小"
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <span style={{ fontSize: '11px', minWidth: '34px', textAlign: 'center', color: 'var(--text-dim)' }}>
+                  {Math.round(scale * 100)}%
+                </span>
+                <button
+                  onClick={() => setScale((s) => Math.min(1.4, Number((s + 0.1).toFixed(2))))}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="放大"
+                >
+                  <ZoomIn size={14} />
+                </button>
+                <button
+                  onClick={() => setScale(0.92)}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', padding: '2px' }}
+                  title="重置缩放"
+                >
+                  <Maximize2 size={13} />
+                </button>
+              </div>
 
-          <QuotePaperPreview
-            quoteDoc={quoteDoc}
-            onUpdateItineraryItem={handleUpdateItineraryItem}
-            onUpdatePsNote={(ps) => setQuoteDoc({ ...quoteDoc, psNote: ps })}
-            scale={scale}
-          />
-        </main>
+              <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
+
+              <button
+                onClick={handleExportExcel}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  padding: '5px 14px',
+                  borderRadius: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                <FileCheck2 size={14} />
+                立即下载此 Excel
+              </button>
+            </div>
+
+            <QuotePaperPreview
+              quoteDoc={quoteDoc}
+              onUpdateItineraryItem={handleUpdateItineraryItem}
+              onUpdatePsNote={(ps) => setQuoteDoc({ ...quoteDoc, psNote: ps })}
+              scale={scale}
+            />
+          </main>
+        </div>
       )}
 
       {/* 导出成功气泡通知 */}

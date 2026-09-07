@@ -226,17 +226,19 @@ input:focus, select:focus, textarea:focus {
   z-index: 15;
 }
 
-/* 纸张容器 */
+/* 纸张容器 (确保高度完全由内部内容自适应撑开，杜绝黑色背景截断) */
 .quote-paper {
-  background: var(--paper-bg);
-  color: var(--paper-text);
-  box-shadow: var(--shadow-paper);
-  border-radius: 2px;
-  padding: 36px 44px;
-  min-height: 800px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: top center;
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 36px 44px 80px 44px;
+  width: 840px;
+  height: auto !important;
+  min-height: unset !important;
+  box-sizing: border-box;
   font-family: var(--font-serif);
+  margin-bottom: 80px;
 }
 
 /* 打印与导出样式 */
