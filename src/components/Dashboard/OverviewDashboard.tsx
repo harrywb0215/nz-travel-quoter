@@ -49,6 +49,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   const { quoterInfo, clientInfo, quoteMeta, itinerary, vehicleQuote, activityQuote } = quoteDoc;
 
+  // 根据起止日期自动计算出游天数
+  const calculatedDays = React.useMemo(() => {
+    const start = clientInfo?.startDate;
+    const end = clientInfo?.endDate;
+    if (!start || !end) return itinerary?.length || 0;
+    try {
+      const d1 = new Date(start + 'T00:00:00');
+      const d2 = new Date(end + 'T00:00:00');
+      if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return itinerary?.length || 0;
+      const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays > 0 ? diffDays : 0;
+    } catch {
+      return itinerary?.length || 0;
+    }
+  }, [clientInfo?.startDate, clientInfo?.endDate, itinerary?.length]);
+
   // 更新报价方
   const handleUpdateQuoter = (field: keyof QuoterInfo, val: string) => {
     onUpdateDoc({
@@ -181,63 +197,18 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     }}>
       {/* 顶部简明横幅 */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         background: 'linear-gradient(135deg, rgba(13, 153, 255, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%)',
         border: '1px solid rgba(13, 153, 255, 0.25)',
         borderRadius: '10px',
         padding: '14px 20px',
       }}>
-        <div>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>新西兰定制游行程报价工作台</span>
-            <span className="badge badge-green">实战版</span>
-          </h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '3px' }}>
-            快速确认双方信息，上传中英文图片/文档秒级提取行程，一键生成符合标准格式的带报价 Excel。
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={onSwitchToPreview}
-            style={{
-              background: 'var(--bg-panel)',
-              border: '1px solid var(--border-strong)',
-              color: 'var(--text-main)',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Eye size={14} color="#38bdf8" />
-            查看最终标准 Excel 预览
-          </button>
-
-          <button
-            onClick={onExportExcel}
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#ffffff',
-              padding: '8px 18px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.35)',
-            }}
-          >
-            <FileSpreadsheet size={15} />
-            生成标准报价 Excel
-          </button>
-        </div>
+        <h2 style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>新西兰定制游行程报价工作台</span>
+          <span className="badge badge-green">实战版</span>
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '3px' }}>
+          快速确认双方信息，上传中英文图片/文档秒级提取行程，一键生成符合标准格式的带报价 Excel。
+        </p>
       </div>
 
       {/* 核心三模块卡片网格 */}
@@ -413,13 +384,58 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginBottom: '2px' }}>出行时间区间</label>
-              <input
-                type="text"
-                value={`${clientInfo?.startDate || '2026-12-18'} 至 ${clientInfo?.endDate || '2027-01-04'} (共 ${itinerary.length} 天)`}
-                onChange={(e) => handleUpdateClient('startDate', e.target.value.slice(0, 10))}
-                style={{ width: '100%', fontSize: '12px' }}
-              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Calendar size={12} color="var(--figma-green)" />
+                  出行时间区间 (日期选择器)
+                </label>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: calculatedDays > 0 ? '#34d399' : '#f87171',
+                  background: calculatedDays > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.25)',
+                  border: `1px solid ${calculatedDays > 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.4)'}`,
+                  padding: '1px 8px',
+                  borderRadius: '10px',
+                }}>
+                  {calculatedDays > 0 ? `共 ${calculatedDays} 天` : '日期区间有误'}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '6px', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={clientInfo?.startDate || ''}
+                  onChange={(e) => handleUpdateClient('startDate', e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: '11.5px',
+                    padding: '5px 8px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    colorScheme: 'dark',
+                    cursor: 'pointer',
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 500 }}>至</span>
+                <input
+                  type="date"
+                  value={clientInfo?.endDate || ''}
+                  onChange={(e) => handleUpdateClient('endDate', e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: '11.5px',
+                    padding: '5px 8px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    colorScheme: 'dark',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
             </div>
 
             <div>
