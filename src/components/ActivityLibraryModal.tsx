@@ -52,14 +52,37 @@ export const ActivityLibraryModal: React.FC<ActivityLibraryModalProps> = ({
     setSelectedIds(initialSet);
   }, [isOpen, activityQuote, activityLibrary]);
 
+  // 动态实时求和计算已选项目费用
+  const { totalAdultPrice, totalChildPrice, selectedCount, selectedItems } = useMemo(() => {
+    let adultSum = 0;
+    let childSum = 0;
+    const items: PresetActivity[] = [];
+
+    (activityLibrary || []).forEach((act) => {
+      if (selectedIds.has(act.id)) {
+        adultSum += act.adultPrice || 0;
+        childSum += act.childPrice || 0;
+        items.push(act);
+      }
+    });
+
+    return {
+      totalAdultPrice: adultSum,
+      totalChildPrice: childSum,
+      selectedCount: items.length,
+      selectedItems: items,
+    };
+  }, [selectedIds, activityLibrary]);
+
+  // 严格在所有 Hooks 调用完毕后再根据 isOpen 返回，防止触发 Rules of Hooks 异常
   if (!isOpen) return null;
 
   // 提取所有地点分类
-  const locations = ['all', ...Array.from(new Set(activityLibrary.map((a) => a.location)))];
+  const locations = ['all', ...Array.from(new Set((activityLibrary || []).map((a) => a.location).filter(Boolean)))];
 
-  const filtered = activityLibrary.filter((act) => {
-    const matchLoc = selectedLocation === 'all' || act.location.includes(selectedLocation);
-    const matchSearch = act.name.toLowerCase().includes(search.toLowerCase()) ||
+  const filtered = (activityLibrary || []).filter((act) => {
+    const matchLoc = selectedLocation === 'all' || (act.location && act.location.includes(selectedLocation));
+    const matchSearch = (act.name && act.name.toLowerCase().includes(search.toLowerCase())) ||
       (act.description && act.description.toLowerCase().includes(search.toLowerCase()));
     return matchLoc && matchSearch;
   });
@@ -86,28 +109,6 @@ export const ActivityLibraryModal: React.FC<ActivityLibraryModalProps> = ({
   const handleClearAll = () => {
     setSelectedIds(new Set());
   };
-
-  // 动态实时求和计算已选项目费用
-  const { totalAdultPrice, totalChildPrice, selectedCount, selectedItems } = useMemo(() => {
-    let adultSum = 0;
-    let childSum = 0;
-    const items: PresetActivity[] = [];
-
-    activityLibrary.forEach((act) => {
-      if (selectedIds.has(act.id)) {
-        adultSum += act.adultPrice || 0;
-        childSum += act.childPrice || 0;
-        items.push(act);
-      }
-    });
-
-    return {
-      totalAdultPrice: adultSum,
-      totalChildPrice: childSum,
-      selectedCount: items.length,
-      selectedItems: items,
-    };
-  }, [selectedIds, activityLibrary]);
 
   // 确认应用勾选结果到主报价单
   const handleConfirmApply = () => {

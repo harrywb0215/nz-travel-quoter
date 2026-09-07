@@ -551,13 +551,15 @@ export function App() {
       )}
 
       {/* 门票价格库弹窗 */}
-      <ActivityLibraryModal
-        isOpen={isLibraryOpen}
-        onClose={() => setIsLibraryOpen(false)}
-        activityQuote={quoteDoc.activityQuote}
-        activityLibrary={systemConfig.activityLibrary}
-        onUpdateQuote={(updated) => setQuoteDoc(prev => ({ ...prev, activityQuote: updated }))}
-      />
+      {isLibraryOpen && (
+        <ActivityLibraryModal
+          isOpen={isLibraryOpen}
+          onClose={() => setIsLibraryOpen(false)}
+          activityQuote={quoteDoc.activityQuote}
+          activityLibrary={systemConfig.activityLibrary}
+          onUpdateQuote={(updated) => setQuoteDoc(prev => ({ ...prev, activityQuote: updated }))}
+        />
+      )}
 
       {/* 业务参数与价格设置弹窗 */}
       <SettingsModal
