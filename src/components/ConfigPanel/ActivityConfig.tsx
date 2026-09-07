@@ -1,5 +1,5 @@
-import React from 'react';
-import { Ticket, Wand2, BookOpen, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Ticket, Wand2, BookOpen, AlertCircle, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { ActivityQuote, ItineraryItem } from '../../types/itinerary';
 import { loadSystemConfig } from '../../utils/storage';
 
@@ -16,6 +16,12 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
   onChange,
   onOpenLibrary,
 }) => {
+  const [noticeModal, setNoticeModal] = useState<{
+    title: string;
+    message: string;
+    type?: 'warning' | 'success';
+  } | null>(null);
+
   // 一键从行程中智能抓取所有活动，并自动在门票库中匹配单价与核算总额
   const handleAutoExtractActivities = () => {
     const extractedList: string[] = [];
@@ -33,7 +39,11 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
     });
 
     if (extractedList.length === 0) {
-      alert('未在当前行程表的“活动”列中提取到具体项目');
+      setNoticeModal({
+        title: '未提取到活动项目',
+        message: '当前右侧行程表的“活动 // 球场”列暂未录入任何具体项目内容。\n\n建议操作：\n• 点击上方【从门票库勾选】快速添加常见活动与门票\n• 或在右侧行程表格各天的活动单元格中直接双击输入',
+        type: 'warning',
+      });
       return;
     }
 
@@ -59,6 +69,12 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
       includedActivities: extractedList,
       customActivityText: mergedText,
       adultPrice: autoSum > 0 ? autoSum : activityQuote.adultPrice,
+    });
+
+    setNoticeModal({
+      title: '活动提取与核算成功',
+      message: `已成功从当前行程表中抓取到 ${extractedList.length} 项活动，并在价格库中自动匹配推算出成人人均门票：NZD ${autoSum > 0 ? autoSum : activityQuote.adultPrice}/人！`,
+      type: 'success',
     });
   };
 
@@ -194,6 +210,99 @@ export const ActivityConfig: React.FC<ActivityConfigProps> = ({
           <span>该段文本将完整渲染在图二底部的“活动包含：”合并单元格中，支持换行和分号分隔。</span>
         </div>
       </div>
+
+      {/* 优雅高保真提示弹窗 (彻底替代简陋原生 alert) */}
+      {noticeModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.72)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          animation: 'fadeIn 0.15s ease-out',
+        }}>
+          <div style={{
+            background: 'var(--bg-topbar)',
+            border: noticeModal.type === 'warning' ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: '12px',
+            width: '440px',
+            maxWidth: '92vw',
+            padding: '24px',
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: noticeModal.type === 'warning' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: noticeModal.type === 'warning' ? '#fbbf24' : '#34d399',
+                  flexShrink: 0,
+                }}>
+                  {noticeModal.type === 'warning' ? <AlertCircle size={22} /> : <CheckCircle2 size={22} />}
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
+                    {noticeModal.title}
+                  </h4>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'block' }}>
+                    新西兰行程活动智能助手
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setNoticeModal(null)}
+                style={{ background: 'transparent', color: 'var(--text-dim)', padding: '4px', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{
+              fontSize: '13px',
+              color: 'var(--text-muted)',
+              lineHeight: '1.7',
+              whiteSpace: 'pre-line',
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+            }}>
+              {noticeModal.message}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setNoticeModal(null)}
+                style={{
+                  background: 'linear-gradient(135deg, #0d99ff 0%, #0284c7 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '7px 22px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 10px rgba(13, 153, 255, 0.35)',
+                }}
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
