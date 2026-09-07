@@ -1,0 +1,264 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap');
+
+:root {
+  /* Figma 现代工作台色彩体系 */
+  --bg-app: #121214;
+  --bg-topbar: #1a1a1e;
+  --bg-sidebar: #18181c;
+  --bg-panel: #202026;
+  --bg-panel-hover: #26262e;
+  --bg-input: #141418;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-active: #0d99ff;
+
+  --text-main: #f3f3f6;
+  --text-muted: #9e9ea8;
+  --text-dim: #656570;
+
+  --figma-blue: #0d99ff;
+  --figma-blue-hover: #0b87e3;
+  --figma-green: #10b981;
+  --figma-green-hover: #059669;
+  --figma-amber: #f59e0b;
+  --figma-red: #ef4444;
+
+  /* 报价单画布专用（纸张模式） */
+  --canvas-bg: #0c0c0e;
+  --paper-bg: #ffffff;
+  --paper-text: #1a1a1a;
+  --paper-border-dotted: #444444;
+  --paper-border-solid: #000000;
+  --paper-highlight-yellow: #ffff00;
+  --paper-red: #dc2626;
+
+  --shadow-figma-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-figma-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-paper: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: 'Noto Serif SC', 'Songti SC', SimSun, serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 滚动条定制 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* 按钮通用 */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+/* 输入框通用 */
+input, select, textarea {
+  font-family: inherit;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--figma-blue);
+  box-shadow: 0 0 0 2px rgba(13, 153, 255, 0.2);
+}
+
+/* 徽标 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-blue {
+  background: rgba(13, 153, 255, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(13, 153, 255, 0.3);
+}
+.badge-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* 页面布局框架 */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* 顶部工作台状态栏 */
+.top-header {
+  height: 52px;
+  background: var(--bg-topbar);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 20;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+
+.brand-logo-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #0d99ff 0%, #0052cc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(13, 153, 255, 0.4);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 主工作区分割 */
+.main-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 左侧配置 Inspector */
+.left-inspector {
+  width: 440px;
+  min-width: 380px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+/* 右侧预览画布区 */
+.right-canvas-viewport {
+  flex: 1;
+  background: var(--canvas-bg);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px;
+  position: relative;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* 悬浮缩放与画板控制条 */
+.canvas-floating-controls {
+  position: sticky;
+  top: 0;
+  margin-bottom: 20px;
+  background: rgba(26, 26, 30, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 30px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-figma-md);
+  z-index: 15;
+}
+
+/* 纸张容器 */
+.quote-paper {
+  background: var(--paper-bg);
+  color: var(--paper-text);
+  box-shadow: var(--shadow-paper);
+  border-radius: 2px;
+  padding: 36px 44px;
+  min-height: 800px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top center;
+  font-family: var(--font-serif);
+}
+
+/* 打印与导出样式 */
+@media print {
+  body {
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+  .top-header, .left-inspector, .canvas-floating-controls {
+    display: none !important;
+  }
+  .main-workspace {
+    overflow: visible !important;
+  }
+  .right-canvas-viewport {
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .quote-paper {
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+}
