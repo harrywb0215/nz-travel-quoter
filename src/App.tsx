@@ -8,7 +8,7 @@ import { QuotePaperPreview } from './components/PreviewCanvas/QuotePaperPreview'
 import { ActivityLibraryModal } from './components/ActivityLibraryModal';
 import { SettingsModal } from './components/SettingsModal';
 import { standard18DaysQuoteDoc } from './constants/initialData';
-import { getSystemConfig, SystemConfig } from './utils/storage';
+import { getSystemConfig, SystemConfig, saveQuoteToHistory } from './utils/storage';
 import type { QuoteDocument, ItineraryItem } from './types/itinerary';
 import { exportQuoteToExcel } from './utils/excelExporter';
 import { 
@@ -22,7 +22,9 @@ import {
   ZoomOut, 
   Maximize2, 
   Sparkles, 
-  CheckCircle2 
+  CheckCircle2,
+  Eye,
+  ArrowRight
 } from 'lucide-react';
 
 export function App() {
@@ -38,6 +40,16 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('已成功生成并导出对齐标准的 Excel 报价单！');
+
+  // 确认生成标准报价并自动跳转至标签 3 查看和下载
+  const handleConfirmAndGenerate = () => {
+    saveQuoteToHistory(quoteDoc);
+    setViewMode('preview');
+    setToastMessage('🎉 标准商业报价已确认生成！已自动为您切换至最终标准 Excel 预览与下载页面。');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3500);
+  };
 
   // 导出带报价 Excel
   const handleExportExcel = async () => {
@@ -272,11 +284,65 @@ export function App() {
                 />
               )}
             </div>
+
+            {/* 左侧面板底部常驻操作栏 */}
+            <div style={{
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border-subtle)',
+              background: 'var(--bg-topbar)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+            }}>
+              <button
+                onClick={() => setViewMode('preview')}
+                style={{
+                  flex: 1,
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-strong)',
+                  color: 'var(--text-main)',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                }}
+                title="切换至标准纸张版面预览"
+              >
+                <Eye size={13} color="#38bdf8" />
+                预览
+              </button>
+
+              <button
+                onClick={handleConfirmAndGenerate}
+                style={{
+                  flex: 1.4,
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                }}
+                title="确认生成并跳转至最终标准 Excel"
+              >
+                <Sparkles size={13} />
+                确认生成标准报价
+              </button>
+            </div>
           </aside>
 
           {/* 右侧所见即所得图二预览画布 */}
           <main className="right-canvas-viewport">
-            <div className="canvas-floating-controls">
+            <div className="canvas-floating-controls" style={{ gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Sparkles size={13} color="var(--figma-amber)" />
                 所见即所得画布（单元格支持双击直接编辑）
@@ -310,6 +376,51 @@ export function App() {
                   <Maximize2 size={13} />
                 </button>
               </div>
+
+              <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
+
+              {/* 预览按钮 */}
+              <button
+                onClick={() => setViewMode('preview')}
+                style={{
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-strong)',
+                  color: 'var(--text-main)',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+                title="直接切换至最终标准 Excel 纸张版面预览"
+              >
+                <Eye size={13} color="#38bdf8" />
+                预览
+              </button>
+
+              {/* 确认生成标准报价 */}
+              <button
+                onClick={handleConfirmAndGenerate}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  padding: '5px 16px',
+                  borderRadius: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.35)',
+                }}
+                title="保存并跳转到最终标准 Excel 标签进行查看和下载"
+              >
+                <Sparkles size={13} />
+                确认生成标准报价
+                <ArrowRight size={13} />
+              </button>
             </div>
 
             <QuotePaperPreview
@@ -325,7 +436,7 @@ export function App() {
       {viewMode === 'preview' && (
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas-bg)', display: 'flex', flexDirection: 'column' }}>
           <main className="right-canvas-viewport" style={{ flex: 1, minHeight: '100%', padding: '24px 24px 100px' }}>
-            <div className="canvas-floating-controls">
+            <div className="canvas-floating-controls" style={{ gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Sparkles size={13} color="var(--figma-amber)" />
                 标准格式预览（完全对齐 26.12.18 南北岛18天.xlsx）
@@ -364,22 +475,42 @@ export function App() {
               <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
 
               <button
+                onClick={() => setViewMode('editor')}
+                style={{
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-strong)',
+                  color: 'var(--text-main)',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <SlidersHorizontal size={13} color="#60a5fa" />
+                返回参数微调
+              </button>
+
+              <button
                 onClick={handleExportExcel}
+                disabled={isExporting}
                 style={{
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: '#ffffff',
-                  padding: '5px 14px',
+                  padding: '5px 16px',
                   borderRadius: '6px',
                   fontSize: '12.5px',
                   fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px',
+                  gap: '6px',
                   boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
                 }}
               >
                 <FileCheck2 size={14} />
-                立即下载此 Excel
+                {isExporting ? '正在生成并导出...' : '下载最终标准 Excel'}
               </button>
             </div>
 
@@ -412,7 +543,7 @@ export function App() {
           fontWeight: 500,
         }}>
           <CheckCircle2 size={18} />
-          <span>已成功生成并导出对齐标准的 Excel 报价单！</span>
+          <span>{toastMessage}</span>
         </div>
       )}
 
