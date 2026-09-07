@@ -13,6 +13,8 @@ import {
   Trash2, 
   Check, 
   AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
   Sparkles,
   Eye,
   EyeOff,
@@ -67,6 +69,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     data: PresetActivity;
   } | null>(null);
 
+  // 统一高保真确认/提示弹窗状态（替代原生丑陋的 alert/confirm）
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    type: 'danger' | 'warning' | 'success' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+    showCancel?: boolean;
+  } | null>(null);
+
+  // 显示美化提示弹窗
+  const showAlert = (title: string, message: string, type: 'warning' | 'success' | 'info' = 'warning') => {
+    setDialogState({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: '我知道了',
+      showCancel: false,
+      onConfirm: () => setDialogState(null),
+    });
+  };
+
+  // 显示美化确认弹窗
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: {
+      type?: 'danger' | 'warning' | 'info';
+      confirmText?: string;
+      cancelText?: string;
+    }
+  ) => {
+    setDialogState({
+      isOpen: true,
+      type: options?.type || 'danger',
+      title,
+      message,
+      confirmText: options?.confirmText || '确认',
+      cancelText: options?.cancelText || '取消',
+      showCancel: true,
+      onConfirm: () => {
+        onConfirm();
+        setDialogState(null);
+      },
+    });
+  };
+
   if (!isOpen) return null;
 
   // 保存设置
@@ -82,12 +136,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // 恢复出厂设置
   const handleResetDefault = () => {
-    if (confirm('确定要恢复为出厂默认价格与配置吗？当前自定义修改将被重置。')) {
-      setCurrentConfig(defaultSystemConfig);
-      saveSystemConfig(defaultSystemConfig);
-      onUpdateConfig(defaultSystemConfig);
-      alert('已恢复为新西兰官方出厂基准配置！');
-    }
+    showConfirm(
+      '恢复出厂默认配置确认',
+      '确定要恢复为新西兰官方出厂默认价格与配置吗？\n当前所有自定义新增或修改的车型、门票及司导补贴参数将被重置覆盖。',
+      () => {
+        setCurrentConfig(defaultSystemConfig);
+        saveSystemConfig(defaultSystemConfig);
+        onUpdateConfig(defaultSystemConfig);
+        showAlert('重置成功', '已恢复为新西兰官方出厂基准业务参数与配置！', 'success');
+      },
+      { type: 'warning', confirmText: '确认恢复出厂' }
+    );
   };
 
   // 更新 AI 配置
@@ -127,9 +186,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const imported = await importConfigFromFile(file);
       setCurrentConfig(imported);
       onUpdateConfig(imported);
-      alert('配置文件导入成功！所有价格参数已更新。');
+      showAlert('导入成功', '配置文件导入成功！所有价格参数及配置已全面更新。', 'success');
     } catch (err: any) {
-      alert('导入失败：' + (err.message || '文件格式错误'));
+      showAlert('导入失败', '导入失败：' + (err.message || '文件格式不正确，请确保为导出的 JSON 配置'), 'warning');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -162,7 +221,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // 保存车型弹窗数据
   const handleSaveVehicleModal = (savedVehicle: VehicleConfigItem, isNew: boolean) => {
     if (!savedVehicle.name.trim()) {
-      alert('请输入车型名称！');
+      showAlert('输入提示', '请输入车型名称后方可保存！', 'warning');
       return;
     }
     if (isNew) {
@@ -179,14 +238,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingVehicle(null);
   };
 
-  // 删除车型（增加二次确认）
+  // 删除车型（美化确认弹窗）
   const handleDeleteVehicle = (id: string, name: string) => {
-    if (confirm(`确定要从价格库中删除车型「${name}」吗？`)) {
-      setCurrentConfig((prev) => ({
-        ...prev,
-        vehicleList: prev.vehicleList.filter((v) => v.id !== id),
-      }));
-    }
+    showConfirm(
+      '删除常用车型确认',
+      `确定要从价格库中永久删除车型「${name}」吗？\n删除后该车型将不再出现在行程单和概况的车型下拉推荐列表中。`,
+      () => {
+        setCurrentConfig((prev) => ({
+          ...prev,
+          vehicleList: prev.vehicleList.filter((v) => v.id !== id),
+        }));
+      },
+      { type: 'danger', confirmText: '确认删除' }
+    );
   };
 
   // 打开「新增景点门票」弹窗
@@ -215,11 +279,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // 保存景点门票弹窗数据
   const handleSaveActivityModal = (savedAct: PresetActivity, isNew: boolean) => {
     if (!savedAct.name.trim()) {
-      alert('请输入景点门票名称！');
+      showAlert('输入提示', '请输入景点门票项目名称后方可保存！', 'warning');
       return;
     }
     if (!savedAct.location.trim()) {
-      alert('请输入或选择所属地区！');
+      showAlert('输入提示', '请输入或点选所属地区城市后方可保存！', 'warning');
       return;
     }
     if (isNew) {
@@ -236,14 +300,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setEditingActivity(null);
   };
 
-  // 删除景点门票（增加二次确认）
+  // 删除景点门票（美化确认弹窗）
   const handleDeleteActivity = (id: string, name: string) => {
-    if (confirm(`确定要从价格库中删除景点门票「${name}」吗？`)) {
-      setCurrentConfig((prev) => ({
-        ...prev,
-        activityLibrary: prev.activityLibrary.filter((a) => a.id !== id),
-      }));
-    }
+    showConfirm(
+      '删除景点门票确认',
+      `确定要从价格库中永久删除景点门票「${name}」吗？\n删除后该项目将不再出现在快捷勾选和自动匹配清单中。`,
+      () => {
+        setCurrentConfig((prev) => ({
+          ...prev,
+          activityLibrary: prev.activityLibrary.filter((a) => a.id !== id),
+        }));
+      },
+      { type: 'danger', confirmText: '确认删除' }
+    );
   };
 
   return (
@@ -1612,6 +1681,139 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                 >
                   确定保存并进入列表
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 统一高保真美化确认/提示弹窗（替代原生丑陋的 alert/confirm） */}
+        {dialogState && dialogState.isOpen && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 300,
+          }}>
+            <div style={{
+              background: 'var(--bg-topbar)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: '12px',
+              width: '440px',
+              maxWidth: '92vw',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.9)',
+            }}>
+              {/* 弹窗头部 */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background:
+                      dialogState.type === 'danger' ? 'rgba(239, 68, 68, 0.15)' :
+                      dialogState.type === 'warning' ? 'rgba(245, 158, 11, 0.15)' :
+                      dialogState.type === 'success' ? 'rgba(16, 185, 129, 0.15)' :
+                      'rgba(13, 153, 255, 0.15)',
+                    color:
+                      dialogState.type === 'danger' ? '#ef4444' :
+                      dialogState.type === 'warning' ? '#fbbf24' :
+                      dialogState.type === 'success' ? '#34d399' :
+                      '#38bdf8',
+                    flexShrink: 0,
+                  }}>
+                    {dialogState.type === 'danger' ? <AlertTriangle size={22} /> :
+                     dialogState.type === 'warning' ? <AlertCircle size={22} /> :
+                     dialogState.type === 'success' ? <CheckCircle2 size={22} /> :
+                     <Sparkles size={22} />}
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '15.5px', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
+                      {dialogState.title}
+                    </h4>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'block' }}>
+                      业务参数与价格管理
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setDialogState(null)}
+                  style={{ background: 'transparent', color: 'var(--text-dim)', padding: '4px', cursor: 'pointer' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* 消息正文 */}
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-muted)',
+                lineHeight: '1.65',
+                whiteSpace: 'pre-line',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+              }}>
+                {dialogState.message}
+              </div>
+
+              {/* 底部按钮栏 */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                {dialogState.showCancel && (
+                  <button
+                    onClick={() => {
+                      if (dialogState.onCancel) dialogState.onCancel();
+                      setDialogState(null);
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      color: 'var(--text-muted)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '7px 16px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {dialogState.cancelText || '取消'}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (dialogState.onConfirm) dialogState.onConfirm();
+                  }}
+                  style={{
+                    background:
+                      dialogState.type === 'danger'
+                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                        : 'linear-gradient(135deg, #0d99ff 0%, #0284c7 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '7px 20px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow:
+                      dialogState.type === 'danger'
+                        ? '0 2px 10px rgba(239, 68, 68, 0.4)'
+                        : '0 2px 10px rgba(13, 153, 255, 0.35)',
+                  }}
+                >
+                  {dialogState.confirmText || '确定'}
                 </button>
               </div>
             </div>
