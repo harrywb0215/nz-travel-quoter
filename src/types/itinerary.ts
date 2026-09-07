@@ -47,6 +47,7 @@ export interface VehicleQuote {
   totalPrice: number;        // 用车总金额，例如 19985
   currency: string;          // 货币单位，例如 'NZD'
   vehicleModel: string;      // 车型，例如 '7 座 Alphard' 或 '16座奔驰 + 拖斗'
+  carDays?: number;          // 实际用车天数
   inclusions: string[];      // 价格包含条款
   exclusions: string[];      // 价格不含条款
   notes: string[];           // 说明条款

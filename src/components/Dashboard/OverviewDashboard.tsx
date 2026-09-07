@@ -23,6 +23,7 @@ import { recognizeItineraryFromImage, parsePlainTextToItinerary } from '../../ut
 import { parseItineraryExcel } from '../../utils/excelParser';
 import { loadSystemConfig } from '../../utils/storage';
 import { parseItineraryWithGeminiVision } from '../../utils/geminiVisionParser';
+import { autoCalculateCostBreakdown } from '../../utils/costCalculator';
 
 interface OverviewDashboardProps {
   quoteDoc: QuoteDocument;
@@ -142,10 +143,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         return;
       }
 
+      // 自动执行成本底表智能推导（补齐南北岛车费、餐补、房补）
+      const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+        items,
+        vehicleQuote.vehicleModel,
+        sysConfig
+      );
+
       // 识别成功：更新主文档并立即自动跳转到「参数微调工作台」
       onUpdateDoc({
         ...quoteDoc,
-        itinerary: items,
+        itinerary: updatedItinerary,
+        vehicleQuote: {
+          ...vehicleQuote,
+          totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
+          carDays: updatedItinerary.filter(i => !i.noCar).length,
+        },
         title: `${clientInfo.name || '客户'} 新西兰行程报价单`,
       });
 
@@ -172,10 +185,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         return;
       }
 
+      const sysConfig = loadSystemConfig();
+      const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+        items,
+        vehicleQuote.vehicleModel,
+        sysConfig
+      );
+
       // 导入成功：更新主文档并立即跳转到「参数微调工作台」
       onUpdateDoc({
         ...quoteDoc,
-        itinerary: items,
+        itinerary: updatedItinerary,
+        vehicleQuote: {
+          ...vehicleQuote,
+          totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
+          carDays: updatedItinerary.filter(i => !i.noCar).length,
+        },
         title: file.name.replace(/\.[^/.]+$/, ''),
       });
 
@@ -202,10 +227,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         return;
       }
 
+      const sysConfig = loadSystemConfig();
+      const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+        items,
+        vehicleQuote.vehicleModel,
+        sysConfig
+      );
+
       // 解析成功：更新主文档并立即跳转到「参数微调工作台」
       onUpdateDoc({
         ...quoteDoc,
-        itinerary: items,
+        itinerary: updatedItinerary,
+        vehicleQuote: {
+          ...vehicleQuote,
+          totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
+          carDays: updatedItinerary.filter(i => !i.noCar).length,
+        },
       });
 
       // 立即自动跳转到参数微调工作台 (图二)

@@ -1,5 +1,7 @@
 import ExcelJS from 'exceljs';
 import type { QuoteDocument } from '../types/itinerary';
+import { detectIsland } from './costCalculator';
+import { getSystemConfig } from './storage';
 
 export async function exportQuoteToExcel(doc: QuoteDocument, fileName?: string) {
   const workbook = new ExcelJS.Workbook();
@@ -161,14 +163,47 @@ export async function exportQuoteToExcel(doc: QuoteDocument, fileName?: string) 
     }
 
     if (includeBreakdown) {
-      // 写入成本核算拆解
-      const eVal = item.northIslandCar ?? null;
-      const fVal = item.southIslandCar ?? null;
-      const gVal = item.holidaySurcharge ?? null;
-      const hVal = item.otherSurcharge ?? null;
-      const iVal = item.northGuideMeal ?? null;
-      const jVal = item.southGuideMeal ?? null;
-      const kVal = item.guideAccommodation ?? null;
+      const isNoCar = Boolean(item.noCar || (item.activity && item.activity.includes('不用车')));
+      const hasPredefinedCost = item.northIslandCar != null || item.southIslandCar != null || item.northGuideMeal != null || item.southGuideMeal != null;
+
+      let eVal = item.northIslandCar ?? null;
+      let fVal = item.southIslandCar ?? null;
+      let gVal = item.holidaySurcharge ?? null;
+      let hVal = item.otherSurcharge ?? null;
+      let iVal = item.northGuideMeal ?? null;
+      let jVal = item.southGuideMeal ?? null;
+      let kVal = item.guideAccommodation ?? null;
+
+      // 智能兜底：如果未配置过成本明细（如新识别或导入的行程），自动按当前车型单价与路线特征补全，绝不留空
+      if (!hasPredefinedCost && !isNoCar) {
+        const island = detectIsland(item.route);
+        const sysCfg = getSystemConfig();
+        const matchedV = sysCfg.vehicleList.find(v => v.name === doc.vehicleQuote.vehicleModel) || sysCfg.vehicleList[0];
+
+        if (island === 'south') {
+          fVal = matchedV?.southIslandPrice || 850;
+          jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
+        } else {
+          eVal = matchedV?.northIslandPrice || 750;
+          iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
+        }
+
+        if (item.date?.includes('2月') || item.route?.includes('春节')) {
+          gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
+        }
+
+        const isLastDay = idx === doc.itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
+        if (!isLastDay && (
+          item.route?.includes('蒂阿瑙') || 
+          item.route?.includes('库克山') || 
+          item.route?.includes('蒂卡波') || 
+          item.route?.includes('但尼丁') || 
+          item.route?.includes('奥马鲁') || 
+          item.route?.includes('罗托鲁阿')
+        )) {
+          kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+        }
+      }
 
       worksheet.getCell(`E${currentRowNum}`).value = eVal;
       worksheet.getCell(`F${currentRowNum}`).value = fVal;

@@ -2,20 +2,25 @@ import React from 'react';
 import { Car, DollarSign, Plus, Trash2, HelpCircle } from 'lucide-react';
 import { VehicleQuote, ItineraryItem } from '../../types/itinerary';
 import { presetVehicles } from '../../constants/initialData';
-import type { VehicleConfigItem } from '../../utils/storage';
+import type { VehicleConfigItem, SystemConfig } from '../../utils/storage';
+import { autoCalculateCostBreakdown } from '../../utils/costCalculator';
 
 interface VehicleConfigProps {
   vehicleQuote: VehicleQuote;
   itinerary: ItineraryItem[];
   onChange: (updated: VehicleQuote) => void;
+  onUpdateItinerary?: (updatedItinerary: ItineraryItem[]) => void;
   vehicleList?: VehicleConfigItem[];
+  systemConfig?: SystemConfig;
 }
 
 export const VehicleConfig: React.FC<VehicleConfigProps> = ({
   vehicleQuote,
   itinerary,
   onChange,
+  onUpdateItinerary,
   vehicleList,
+  systemConfig,
 }) => {
   const activeVehicles = vehicleList && vehicleList.length > 0 ? vehicleList : presetVehicles;
 
@@ -24,7 +29,7 @@ export const VehicleConfig: React.FC<VehicleConfigProps> = ({
   const needCarDays = itinerary.filter((i) => !i.noCar).length;
   const noCarDays = totalDays - needCarDays;
 
-  // 快捷更换车型并更新包含项中的车型文字
+  // 快捷更换车型并更新包含项中的车型文字，同时联动刷新底表明细
   const handleSelectModel = (modelName: string) => {
     const matched = activeVehicles.find((v) => v.name === modelName);
     const updatedInclusions = vehicleQuote.inclusions.map((inc) => {
@@ -34,15 +39,30 @@ export const VehicleConfig: React.FC<VehicleConfigProps> = ({
       return inc;
     });
 
-    const dayPrice = (matched as any)?.southIslandPrice || (matched as any)?.baseDayPrice || 850;
-    const estimatedPrice = dayPrice * needCarDays;
+    if (systemConfig && onUpdateItinerary) {
+      const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+        itinerary,
+        modelName,
+        systemConfig
+      );
+      onUpdateItinerary(updatedItinerary);
+      onChange({
+        ...vehicleQuote,
+        vehicleModel: modelName,
+        inclusions: updatedInclusions,
+        totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
+      });
+    } else {
+      const dayPrice = (matched as any)?.southIslandPrice || (matched as any)?.baseDayPrice || 850;
+      const estimatedPrice = dayPrice * needCarDays;
 
-    onChange({
-      ...vehicleQuote,
-      vehicleModel: modelName,
-      inclusions: updatedInclusions,
-      totalPrice: estimatedPrice || vehicleQuote.totalPrice,
-    });
+      onChange({
+        ...vehicleQuote,
+        vehicleModel: modelName,
+        inclusions: updatedInclusions,
+        totalPrice: estimatedPrice || vehicleQuote.totalPrice,
+      });
+    }
   };
 
   // 修改价格包含项

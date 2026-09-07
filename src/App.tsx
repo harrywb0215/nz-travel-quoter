@@ -264,7 +264,9 @@ export function App() {
                   vehicleQuote={quoteDoc.vehicleQuote}
                   itinerary={quoteDoc.itinerary}
                   vehicleList={systemConfig.vehicleList}
-                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, vehicleQuote: updated })}
+                  systemConfig={systemConfig}
+                  onUpdateItinerary={(updatedItin) => setQuoteDoc(prev => ({ ...prev, itinerary: updatedItin }))}
+                  onChange={(updated) => setQuoteDoc(prev => ({ ...prev, vehicleQuote: updated }))}
                 />
               )}
 
