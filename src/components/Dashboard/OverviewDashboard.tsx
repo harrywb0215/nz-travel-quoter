@@ -780,13 +780,22 @@ Day 3 12月20日 皇后镇 天空缆车"
           justifyContent: 'space-between',
           alignItems: 'center',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={16} color="var(--figma-green)" />
-            <span style={{ fontSize: '13px', fontWeight: 500 }}>
-              当前已就绪行程：<strong>{itinerary.length} 天</strong>
-              （用车 {itinerary.filter(i => !i.noCar).length} 天{itinerary.filter(i => i.noCar).length > 0 ? `，${itinerary.filter(i => i.noCar).length}天不用车` : ''}）
-            </span>
-          </div>
+          {itinerary.length > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle2 size={16} color="var(--figma-green)" />
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>
+                当前已就绪行程：<strong>{itinerary.length} 天</strong>
+                （用车 {itinerary.filter(i => !i.noCar).length} 天{itinerary.filter(i => i.noCar).length > 0 ? `，${itinerary.filter(i => i.noCar).length}天不用车` : ''}）
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+              <Sparkles size={16} color="#38bdf8" />
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>
+                当前暂无行程明细：请在上方上传客户行程截图 / 导入 Excel 快速生成
+              </span>
+            </div>
+          )}
 
           <button
             onClick={onSwitchToEditor}

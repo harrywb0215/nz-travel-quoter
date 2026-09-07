@@ -1,265 +1,80 @@
 import type { ItineraryItem, QuoteDocument, PresetActivity } from '../types/itinerary';
 
-// 图一：原始客户发来的 18 天行程单
-export const figure1Itinerary: ItineraryItem[] = [
-  { id: '1', day: 'Day 1', date: '12月18日', route: '皇后镇接机 1215 + 游览', activity: '' },
-  { id: '2', day: 'Day 2', date: '12月19日', route: '皇后镇', activity: 'TSS + 晚餐' },
-  { id: '3', day: 'Day 3', date: '12月20日', route: '皇后镇', activity: '米尔布鲁克' },
-  { id: '4', day: 'Day 4', date: '12月21日', route: '皇后镇', activity: '杰克斯角' },
-  { id: '5', day: 'Day 5', date: '12月22日', route: '皇后镇 - 格林诺奇 - 皇后镇', activity: '天空缆车' },
-  { id: '6', day: 'Day 6', date: '12月23日', route: '皇后镇 - 蒂阿瑙', activity: '萤火虫洞' },
-  { id: '7', day: 'Day 7', date: '12月24日', route: '蒂阿瑙 - 峡湾 - 但尼丁', activity: '' },
-  { id: '8', day: 'Day 8', date: '12月25日', route: '但尼丁 - 大圆石 - 奥马鲁', activity: '看小企鹅迁徙' },
-  { id: '9', day: 'Day 9', date: '12月26日', route: '奥马鲁 - 库克山', activity: '' },
-  { id: '10', day: 'Day 10', date: '12月27日', route: '库克山 - 蒂卡波', activity: '塔斯曼冰河探险' },
-  { id: '11', day: 'Day 11', date: '12月28日', route: '蒂卡波 - 基督城', activity: '' },
-  { id: '12', day: 'Day 12', date: '12月29日', route: '基督城 - 阿卡罗阿 - 基督城', activity: '龙虾船（包船）/ 出海看海豚' },
-  { id: '13', day: 'Day 13', date: '12月30日', route: '基督城 / 奥克兰', activity: '' },
-  { id: '14', day: 'Day 14', date: '12月31日', route: '奥克兰 - 霍比特 - 罗托鲁阿', activity: '霍比特村游览' },
-  { id: '15', day: 'Day 15', date: '1月1日', route: '罗托鲁阿 - 陶波湖 - 罗托鲁阿', activity: '毛利文化村 / 陶波湖游览' },
-  { id: '16', day: 'Day 16', date: '1月2日', route: '罗托鲁阿 - 奥克兰', activity: '爱歌顿皇家牧场' },
-  { id: '17', day: 'Day 17', date: '1月3日', route: '奥克兰 打球', activity: '' },
-  { id: '18', day: 'Day 18', date: '1月4日', route: '奥克兰送机', activity: '' },
-];
+/**
+ * 动态创建全新的纯净空白报价单
+ * （进入首页接待新客户、或一键新建单据时使用，绝不残留任何历史/假数据）
+ */
+export function createEmptyQuoteDoc(): QuoteDocument {
+  const now = new Date();
+  const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const randomSuffix = String(Math.floor(100 + Math.random() * 900));
 
-// 用户指定的真实标准模板：26.12.18 南北岛18天.xlsx
-export const standard18DaysQuoteDoc: QuoteDocument = {
-  title: '26.12.18 南北岛18天',
-  psNote: 'PS： 26春节：2.16-26 附加费',
-  quoterInfo: {
-    companyName: '新西兰 Harry 精品定制车队',
-    agentName: 'Harry 导游',
-    phone: '+64 21 888 666',
-    wechat: 'harrywb0215',
-    license: 'NZTA SPSL 认证商业运营车队',
-  },
-  clientInfo: {
-    name: '刘齐 一家4口',
-    phone: '13800000000',
-    wechat: 'liuqi_nz_travel',
-    adultCount: 4,
-    childCount: 0,
-    startDate: '2026-12-18',
-    endDate: '2027-01-04',
-    specialDemands: '南北岛深度定制慢游、需要行李拖斗、要求16座奔驰或7座Alphard',
-  },
-  quoteMeta: {
-    quoteNo: 'NZQ-202612-001',
-    createDate: '2026-09-07',
-    expiryWeeks: 2,
-    exchangeRateToRmb: 4.35,
-    status: 'draft',
-  },
-  includeCostBreakdown: true,
-  updatedAt: '2026-09-07',
-  itinerary: [
-    {
-      id: 'day-1',
-      day: 'Day 1',
-      date: '12月18日',
-      route: '皇后镇接机 1420 + 游览',
-      activity: '',
-      southIslandCar: 800,
-      otherSurcharge: 600,
-      southGuideMeal: 50,
+  const todayStr = now.toISOString().slice(0, 10);
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const nextWeekStr = nextWeek.toISOString().slice(0, 10);
+
+  return {
+    title: '新西兰定制游行程报价单',
+    psNote: 'PS： 26春节：2.16-26 附加费',
+    quoterInfo: {
+      companyName: '新西兰 Harry 精品定制车队',
+      agentName: 'Harry 导游',
+      phone: '+64 21 888 666',
+      wechat: 'harrywb0215',
+      license: 'NZTA SPSL 认证商业运营车队',
     },
-    {
-      id: 'day-2',
-      day: 'Day 2',
-      date: '12月19日',
-      route: '皇后镇 - 格林诺奇 - 皇后镇',
-      activity: 'TSS + 晚餐 NZD 199/人',
-      southIslandCar: 850,
-      otherSurcharge: 200,
-      southGuideMeal: 75,
+    clientInfo: {
+      name: '',
+      phone: '',
+      wechat: '',
+      adultCount: 4,
+      childCount: 0,
+      startDate: todayStr,
+      endDate: nextWeekStr,
+      specialDemands: '',
     },
-    {
-      id: 'day-3',
-      day: 'Day 3',
-      date: '12月20日',
-      route: '皇后镇 - 瓦纳卡 - 皇后镇',
-      activity: '天空缆车 NZD 69/人',
-      southIslandCar: 850,
-      otherSurcharge: 200,
-      southGuideMeal: 75,
+    quoteMeta: {
+      quoteNo: `NZQ-${yearMonth}-${randomSuffix}`,
+      createDate: todayStr,
+      expiryWeeks: 2,
+      exchangeRateToRmb: 4.35,
+      status: 'draft',
     },
-    {
-      id: 'day-4',
-      day: 'Day 4',
-      date: '12月21日',
-      route: '皇后镇 - 峡湾 - 蒂阿瑙',
-      activity: '峡湾游轮 + 游轮自助',
-      southIslandCar: 850,
-      southGuideMeal: 75,
+    includeCostBreakdown: true,
+    updatedAt: todayStr,
+    itinerary: [], // 干净的 0 行程，等待上传识别或手动录入
+    vehicleQuote: {
+      totalPrice: 0,
+      currency: 'NZD',
+      vehicleModel: '7 座 Alphard',
+      carDays: 0,
+      inclusions: [
+        '车：7 座 Alphard，燃油，机场卡，车辆保险',
+        '司兼导服务，司导工资；司导住宿（未含库克山司导住宿），餐补',
+      ],
+      exclusions: [
+        '小费：NZD 6每人每天（请现金结算给导游，南北岛分开计算）',
+        '不含行程以外的路程费',
+        '不含旅游保险（建议自行购买）',
+      ],
+      notes: [
+        '工作时间：全天不超过10小时，超时部分按照 NZD 150/小时 计算。',
+        '此报价有效期为 2周，报价以最终航班时间为准，保留调整权利。',
+        '因不可抗力因素（天气/航班延误等）导致的行程变更，车队将协助协调。',
+      ],
     },
-    {
-      id: 'day-5',
-      day: 'Day 5',
-      date: '12月22日',
-      route: '蒂阿瑙 - 水果小镇 - 但尼丁',
-      activity: '',
-      southIslandCar: 850,
-      southGuideMeal: 75,
-      guideAccommodation: 200,
+    activityQuote: {
+      adultPrice: 0,
+      currency: 'NZD',
+      includedActivities: [],
+      customActivityText: '',
     },
-    {
-      id: 'day-6',
-      day: 'Day 6',
-      date: '12月23日',
-      route: '但尼丁 - 大圆石 - 奥马鲁',
-      activity: '看小企鹅迁徙 NZD 67/人',
-      southIslandCar: 850,
-      southGuideMeal: 75,
-      guideAccommodation: 200,
-    },
-    {
-      id: 'day-7',
-      day: 'Day 7',
-      date: '12月24日',
-      route: '奥马鲁 - 库克山 - 蒂卡波湖',
-      activity: '',
-      southIslandCar: 850,
-      holidaySurcharge: 175,
-      southGuideMeal: 75,
-    },
-    {
-      id: 'day-8',
-      day: 'Day 8',
-      date: '12月25日',
-      route: '库克山 - 蒂卡波',
-      activity: '塔斯曼冰河探险 NZD 219/人',
-      southIslandCar: 850,
-      holidaySurcharge: 175,
-      southGuideMeal: 75,
-      guideAccommodation: 300,
-    },
-    {
-      id: 'day-9',
-      day: 'Day 9',
-      date: '12月26日',
-      route: '蒂卡波 - 基督城',
-      activity: '',
-      southIslandCar: 850,
-      holidaySurcharge: 175,
-      southGuideMeal: 75,
-    },
-    {
-      id: 'day-10',
-      day: 'Day 10',
-      date: '12月27日',
-      route: '基督城 - 阿卡罗阿 - 基督城',
-      activity: '龙虾船 NZD 3500(包船）\n出海看海豚 NZD 125/人',
-      southIslandCar: 850,
-      otherSurcharge: 200,
-      southGuideMeal: 50,
-    },
-    {
-      id: 'day-11',
-      day: 'Day 11',
-      date: '12月28日',
-      route: '基督城 / 奥克兰 1605 // 1730',
-      activity: '南极中心 NZD 74/人',
-      northIslandCar: 750,
-      southIslandCar: 850,
-      northGuideMeal: 40,
-      southGuideMeal: 25,
-    },
-    {
-      id: 'day-12',
-      day: 'Day 12',
-      date: '12月29日',
-      route: '奥克兰 - 霍比特 - 罗托鲁阿',
-      activity: '霍比特村游览 NZD 120/人',
-      northIslandCar: 750,
-      northGuideMeal: 40,
-      guideAccommodation: 180,
-    },
-    {
-      id: 'day-13',
-      day: 'Day 13',
-      date: '12月30日',
-      route: '罗托鲁阿',
-      activity: '毛利文化村 NZD 142/人\n爱歌顿皇家牧场 NZD 61/人',
-      northIslandCar: 750,
-      northGuideMeal: 60,
-      guideAccommodation: 180,
-    },
-    {
-      id: 'day-14',
-      day: 'Day 14',
-      date: '12月31日',
-      route: '罗托鲁阿 - 陶波湖 - 罗托鲁阿',
-      activity: '陶波湖游览',
-      northIslandCar: 750,
-      holidaySurcharge: 175,
-      northGuideMeal: 60,
-      guideAccommodation: 180,
-    },
-    {
-      id: 'day-15',
-      day: 'Day 15',
-      date: '1月1日',
-      route: '罗托鲁阿 - 萤火虫洞 - 奥克兰',
-      activity: '萤火虫洞 NZD 81/人',
-      northIslandCar: 750,
-      holidaySurcharge: 175,
-      otherSurcharge: 150,
-      northGuideMeal: 60,
-    },
-    {
-      id: 'day-16',
-      day: 'Day 16',
-      date: '1月2日',
-      route: '奥克兰 市区游览',
-      activity: '',
-      northIslandCar: 750,
-      holidaySurcharge: 175,
-      otherSurcharge: 1500,
-      northGuideMeal: 40,
-    },
-    {
-      id: 'day-17',
-      day: 'Day 17',
-      date: '1月3日',
-      route: '奥克兰送机 1045',
-      activity: '',
-      northGuideMeal: 20,
-    },
-  ],
-  vehicleQuote: {
-    totalPrice: 19985,
-    currency: 'NZD',
-    vehicleModel: '7 座 Alphard',
-    inclusions: [
-      '车：16座奔驰 + 拖斗，燃油，机场卡，车辆保险',
-      '司兼导服务，司导工资；司导住宿（未含库克山司导住宿），餐补',
-    ],
-    exclusions: [
-      '小费：NZD 6每人每天（请现金结算给导游，南北岛分开计算）',
-      '不含行程以外的路程费，',
-      '不含旅游保险（建议自行购买）',
-    ],
-    notes: [
-      '工作时间：全天不超过10小时，超时部分按照 NZD150/小时（含GST）计算',
-      '此报价有效期为2周，报价以最终航班时间为准，目前并未座任何预留',
-    ],
-  },
-  activityQuote: {
-    adultPrice: 2080,
-    currency: 'NZD',
-    includedActivities: [
-      '凯库拉观鲸',
-      'Alpacas farm',
-      '直升机飞峡湾 + 峡湾游轮+ 午餐（餐盒）',
-      '山顶缆车',
-      'TSS 游湖',
-      '霍比特村游览',
-      'Wai O Tapu 地热公园门票',
-      '怀托摩萤火虫洞',
-    ],
-    customActivityText: '凯库拉观鲸，Alpacas farm， 直升机飞峡湾 + 峡湾游轮+ 午餐（餐盒）；山顶缆车；TSS 游湖；霍比特村游览，Wai O Tapu 地热公园门票；怀托摩萤火虫洞',
-  },
-};
+  };
+}
+
+// 默认出厂初始单据为空白单据
+export const standard18DaysQuoteDoc: QuoteDocument = createEmptyQuoteDoc();
+export const figure1Itinerary: ItineraryItem[] = [];
 
 // 预置常用新西兰活动与门票参考库（NZD）
 export const presetActivities: PresetActivity[] = [

@@ -121,7 +121,29 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
             </tr>
           </thead>
           <tbody style={{ background: '#ffffff' }}>
-            {itinerary.map((item, idx) => (
+            {itinerary.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  style={{
+                    border: '1px dashed #cbd5e1',
+                    padding: '28px 16px',
+                    textAlign: 'center',
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontWeight: 600, color: '#64748b' }}>📋 当前行程表为空（0 天）</span>
+                    <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+                      请前往「1. 首页与智能识别」上传客户行程截图 / 导入 Excel，或在工作台左侧手动添加行程
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              itinerary.map((item, idx) => (
               <tr key={item.id} style={{ minHeight: '24px', background: '#ffffff' }}>
                 {/* Day 标记 */}
                 <td
@@ -236,7 +258,7 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
                   />
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
 

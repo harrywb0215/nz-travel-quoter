@@ -12,6 +12,7 @@ import {
   Plus
 } from 'lucide-react';
 import { getSavedQuotes, saveQuoteToHistory, deleteQuoteFromHistory } from '../utils/storage';
+import { createEmptyQuoteDoc } from '../constants/initialData';
 import type { QuoteDocument } from '../types/itinerary';
 
 interface HeaderProps {
@@ -136,28 +137,57 @@ export const Header: React.FC<HeaderProps> = ({
               flexDirection: 'column',
               gap: '6px',
             }}>
-              {/* 顶部：快捷存为新草稿按钮 */}
-              <button
-                onClick={handleSaveDraft}
-                style={{
-                  width: '100%',
-                  background: saveSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(13, 153, 255, 0.12)',
-                  border: `1px solid ${saveSuccess ? 'rgba(16, 185, 129, 0.35)' : 'rgba(13, 153, 255, 0.3)'}`,
-                  color: saveSuccess ? '#34d399' : '#60a5fa',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                }}
-              >
-                {saveSuccess ? <Check size={14} /> : <Plus size={14} />}
-                {saveSuccess ? '当前单据已成功保存！' : '将当前单据存为新草稿'}
-              </button>
+              {/* 顶部操作条：新建空白单据 + 存为草稿 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <button
+                  onClick={() => {
+                    if (window.confirm('确认新建空白报价单吗？\n如当前编辑中的单据需要保留，请先点击“存为草稿”。')) {
+                      onUpdateDoc(createEmptyQuoteDoc());
+                      setIsHistoryOpen(false);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-main)',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                  }}
+                  title="清空当前工作区并生成全新空白单据"
+                >
+                  <Plus size={13} color="#38bdf8" />
+                  新建空白单
+                </button>
+
+                <button
+                  onClick={handleSaveDraft}
+                  style={{
+                    background: saveSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(13, 153, 255, 0.12)',
+                    border: `1px solid ${saveSuccess ? 'rgba(16, 185, 129, 0.35)' : 'rgba(13, 153, 255, 0.3)'}`,
+                    color: saveSuccess ? '#34d399' : '#60a5fa',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                  }}
+                  title="将当前工作区的单据保存到草稿箱"
+                >
+                  {saveSuccess ? <Check size={13} /> : <Save size={13} />}
+                  {saveSuccess ? '已保存！' : '存入草稿箱'}
+                </button>
+              </div>
 
               <div style={{ fontSize: '11px', color: 'var(--text-dim)', padding: '4px 6px', borderBottom: '1px solid var(--border-subtle)' }}>
                 本地已保存的报价单 ({savedQuotes.length})
