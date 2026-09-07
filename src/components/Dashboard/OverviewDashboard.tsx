@@ -134,9 +134,40 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   // 更新客户信息
   const handleUpdateClient = (field: keyof ClientInfo, val: any) => {
+    const newClient = { ...clientInfo, [field]: val };
+    let updatedVehicleQuote = vehicleQuote;
+
+    // 当暂无具体行程明细时，修改出行起止日期自动联动更新预估用车总价
+    if (itinerary.length === 0 && (field === 'startDate' || field === 'endDate')) {
+      const s = field === 'startDate' ? val : newClient.startDate;
+      const e = field === 'endDate' ? val : newClient.endDate;
+      try {
+        const d1 = new Date(s + 'T00:00:00');
+        const d2 = new Date(e + 'T00:00:00');
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          if (diff > 0) {
+            const sysConfig = loadSystemConfig();
+            const { totalCarPrice } = autoCalculateCostBreakdown(
+              [],
+              vehicleQuote.vehicleModel,
+              sysConfig,
+              diff
+            );
+            updatedVehicleQuote = {
+              ...vehicleQuote,
+              totalPrice: totalCarPrice,
+              carDays: diff,
+            };
+          }
+        }
+      } catch {}
+    }
+
     onUpdateDoc({
       ...quoteDoc,
-      clientInfo: { ...clientInfo, [field]: val },
+      clientInfo: newClient,
+      vehicleQuote: updatedVehicleQuote,
     });
   };
 
@@ -192,13 +223,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     });
   };
 
-  // 2. 切换车型并自动重新核算车费
+  // 2. 切换车型并自动重新核算车费（支持在未录入具体行程前根据出行天数自动计算预估车费）
   const handleChangeVehicleModel = (newModel: string) => {
     const sysConfig = loadSystemConfig();
+    const effectiveDays = calculatedDays > 0 ? calculatedDays : 8;
     const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
       itinerary,
       newModel,
-      sysConfig
+      sysConfig,
+      effectiveDays
     );
     const updatedInclusions = (vehicleQuote.inclusions || []).map(inc => {
       if (inc.startsWith('车：')) {
@@ -213,8 +246,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       vehicleQuote: {
         ...vehicleQuote,
         vehicleModel: newModel,
-        totalPrice: totalCarPrice > 0 ? totalCarPrice : vehicleQuote.totalPrice,
-        carDays: updatedItinerary.filter(i => !i.noCar).length,
+        totalPrice: totalCarPrice,
+        carDays: updatedItinerary.length > 0 ? updatedItinerary.filter(i => !i.noCar).length : effectiveDays,
         inclusions: updatedInclusions,
       }
     });

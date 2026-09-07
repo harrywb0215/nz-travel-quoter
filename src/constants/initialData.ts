@@ -44,10 +44,10 @@ export function createEmptyQuoteDoc(): QuoteDocument {
     updatedAt: todayStr,
     itinerary: [], // 干净的 0 行程，等待上传识别或手动录入
     vehicleQuote: {
-      totalPrice: 0,
+      totalPrice: 7400, // 初始默认 8 天出行 * (7座 Alphard $850 + 餐补 $75)
       currency: 'NZD',
       vehicleModel: '7 座 Alphard',
-      carDays: 0,
+      carDays: 8,
       inclusions: [
         '车：7 座 Alphard，燃油，机场卡，车辆保险',
         '司兼导服务，司导工资；司导住宿（未含库克山司导住宿），餐补',

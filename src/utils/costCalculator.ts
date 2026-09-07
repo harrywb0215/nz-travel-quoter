@@ -45,7 +45,8 @@ export function detectIsland(routeText: string): 'south' | 'north' {
 export function autoCalculateCostBreakdown(
   itinerary: ItineraryItem[],
   vehicleModelName: string,
-  systemConfig: SystemConfig
+  systemConfig: SystemConfig,
+  fallbackDays: number = 0
 ): {
   updatedItinerary: ItineraryItem[];
   totalCarPrice: number;
@@ -60,6 +61,15 @@ export function autoCalculateCostBreakdown(
   const southMealRate = guideAllowance?.southIslandMeal || 75;
   const northMealRate = guideAllowance?.northIslandMeal || 50;
   const accommodationRate = guideAllowance?.accommodationSubsidy || 200;
+
+  // 当行程明细为空但有出行天数时（如未导入行程前的预估报价），按每日基准（南岛日租 + 司导餐补）计算预估总额
+  if (itinerary.length === 0 && fallbackDays > 0) {
+    const dailyRate = southCarRate + southMealRate;
+    return {
+      updatedItinerary: [],
+      totalCarPrice: fallbackDays * dailyRate,
+    };
+  }
 
   let grandTotalCar = 0;
 
