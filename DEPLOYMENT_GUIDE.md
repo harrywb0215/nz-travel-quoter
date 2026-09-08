@@ -140,12 +140,9 @@
 
 ### 4. SPA 单页应用路由配置
 
-本项目根目录下已包含针对 Vercel 的 `vercel.json` 路由重写规则。
-为了确保在 Cloudflare Pages 上刷新非根路由时也能正确回到 `index.html`，本项目已在 `public/_redirects` 文件中配置 SPA 路由兜底规则：
-```text
-/*    /index.html   200
-```
-Cloudflare Pages 在打包时会自动识别该文件，杜绝页面刷新 404 的问题。
+为了确保在 Cloudflare Pages 上刷新任何路由均能正确加载且避免 `_redirects` 死循环冲突，本项目已在构建脚本中自动生成标准 SPA 状态码回退文件 `dist/200.html`：
+- Cloudflare Pages 在检测到 `200.html` 时会自动将其作为无死循环风险的 SPA 全局捕获页面；
+- 彻底避免了传统的 `/* /index.html 200` 触发的 `Infinite loop detected in this rule [code: 100324]` 错误。
 
 ---
 
