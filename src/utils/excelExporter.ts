@@ -164,44 +164,56 @@ export async function exportQuoteToExcel(doc: QuoteDocument, fileName?: string) 
 
     if (includeBreakdown) {
       const isNoCar = Boolean(item.noCar || (item.activity && item.activity.includes('不用车')));
-      const hasPredefinedCost = item.northIslandCar != null || item.southIslandCar != null || item.northGuideMeal != null || item.southGuideMeal != null;
 
-      let eVal = item.northIslandCar ?? null;
-      let fVal = item.southIslandCar ?? null;
-      let gVal = item.holidaySurcharge ?? null;
-      let hVal = item.otherSurcharge ?? null;
-      let iVal = item.northGuideMeal ?? null;
-      let jVal = item.southGuideMeal ?? null;
-      let kVal = item.guideAccommodation ?? null;
+      let eVal: number | null = null;
+      let fVal: number | null = null;
+      let gVal: number | null = null;
+      let hVal: number | null = null;
+      let iVal: number | null = null;
+      let jVal: number | null = null;
+      let kVal: number | null = null;
 
-      // 智能兜底：如果未配置过成本明细（如新识别或导入的行程），自动按当前车型单价与路线特征补全，绝不留空
-      if (!hasPredefinedCost && !isNoCar) {
-        const island = detectIsland(item.route);
-        const sysCfg = getSystemConfig();
-        const matchedV = sysCfg.vehicleList.find(v => v.name === doc.vehicleQuote.vehicleModel) || sysCfg.vehicleList[0];
+      // 只有需要用车时才输出底表成本
+      if (!isNoCar) {
+        const hasPredefinedCost = item.northIslandCar != null || item.southIslandCar != null || item.northGuideMeal != null || item.southGuideMeal != null;
 
-        if (island === 'south') {
-          fVal = matchedV?.southIslandPrice || 850;
-          jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
-        } else {
-          eVal = matchedV?.northIslandPrice || 750;
-          iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
-        }
+        eVal = item.northIslandCar ?? null;
+        fVal = item.southIslandCar ?? null;
+        gVal = item.holidaySurcharge ?? null;
+        hVal = item.otherSurcharge ?? null;
+        iVal = item.northGuideMeal ?? null;
+        jVal = item.southGuideMeal ?? null;
+        kVal = item.guideAccommodation ?? null;
 
-        if (item.date?.includes('2月') || item.route?.includes('春节')) {
-          gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
-        }
+        // 智能兜底：如果未配置过成本明细（如新识别或导入的行程），自动按当前车型单价与路线特征补全，绝不留空
+        if (!hasPredefinedCost) {
+          const island = detectIsland(item.route);
+          const sysCfg = getSystemConfig();
+          const matchedV = sysCfg.vehicleList.find(v => v.name === doc.vehicleQuote.vehicleModel) || sysCfg.vehicleList[0];
 
-        const isLastDay = idx === doc.itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
-        if (!isLastDay && (
-          item.route?.includes('蒂阿瑙') || 
-          item.route?.includes('库克山') || 
-          item.route?.includes('蒂卡波') || 
-          item.route?.includes('但尼丁') || 
-          item.route?.includes('奥马鲁') || 
-          item.route?.includes('罗托鲁阿')
-        )) {
-          kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+          if (island === 'south') {
+            fVal = matchedV?.southIslandPrice || 850;
+            jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
+          } else {
+            eVal = matchedV?.northIslandPrice || 750;
+            iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
+          }
+
+          if (item.date?.includes('2月') || item.route?.includes('春节')) {
+            gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
+          }
+
+          const isLastDay = idx === doc.itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
+          if (!isLastDay && (
+            item.route?.includes('蒂阿瑙') || 
+            item.route?.includes('库克山') || 
+            item.route?.includes('蒂卡波') || 
+            item.route?.includes('但尼丁') || 
+            item.route?.includes('奥马鲁') || 
+            item.route?.includes('罗托鲁阿')
+          )) {
+            kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+          }
         }
       }
 

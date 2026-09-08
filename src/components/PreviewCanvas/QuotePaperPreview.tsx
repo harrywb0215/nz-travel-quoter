@@ -25,57 +25,70 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
   // 动态核算每行的成本明细（与 excelExporter.ts 算法 100% 对齐）
   const breakdownRows = itinerary.map((item, idx) => {
     const isNoCar = Boolean(item.noCar || (item.activity && item.activity.includes('不用车')));
-    const hasPredefinedCost =
-      item.northIslandCar != null ||
-      item.southIslandCar != null ||
-      item.northGuideMeal != null ||
-      item.southGuideMeal != null;
 
-    let eVal = item.northIslandCar ?? null;
-    let fVal = item.southIslandCar ?? null;
-    let gVal = item.holidaySurcharge ?? null;
-    let hVal = item.otherSurcharge ?? null;
-    let iVal = item.northGuideMeal ?? null;
-    let jVal = item.southGuideMeal ?? null;
-    let kVal = item.guideAccommodation ?? null;
+    let eVal: number | null = null;
+    let fVal: number | null = null;
+    let gVal: number | null = null;
+    let hVal: number | null = null;
+    let iVal: number | null = null;
+    let jVal: number | null = null;
+    let kVal: number | null = null;
 
-    if (!hasPredefinedCost && !isNoCar) {
-      const island = detectIsland(item.route);
-      if (island === 'south') {
-        fVal = matchedV?.southIslandPrice || 850;
-        jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
-      } else {
-        eVal = matchedV?.northIslandPrice || 750;
-        iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
-      }
+    // 只有在明确需要用车时才核算各项车费与司导补贴；不用车则完全置空保持留白
+    if (!isNoCar) {
+      const hasPredefinedCost =
+        item.northIslandCar != null ||
+        item.southIslandCar != null ||
+        item.northGuideMeal != null ||
+        item.southGuideMeal != null;
 
-      if (item.date?.includes('2月') || item.route?.includes('春节')) {
-        gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
-      }
+      eVal = item.northIslandCar ?? null;
+      fVal = item.southIslandCar ?? null;
+      gVal = item.holidaySurcharge ?? null;
+      hVal = item.otherSurcharge ?? null;
+      iVal = item.northGuideMeal ?? null;
+      jVal = item.southGuideMeal ?? null;
+      kVal = item.guideAccommodation ?? null;
 
-      const isLastDay =
-        idx === itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
-      if (
-        !isLastDay &&
-        (item.route?.includes('蒂阿瑙') ||
-          item.route?.includes('库克山') ||
-          item.route?.includes('蒂卡波') ||
-          item.route?.includes('但尼丁') ||
-          item.route?.includes('奥马鲁') ||
-          item.route?.includes('罗托鲁阿'))
-      ) {
-        kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+      if (!hasPredefinedCost) {
+        const island = detectIsland(item.route);
+        if (island === 'south') {
+          fVal = matchedV?.southIslandPrice || 850;
+          jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
+        } else {
+          eVal = matchedV?.northIslandPrice || 750;
+          iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
+        }
+
+        if (item.date?.includes('2月') || item.route?.includes('春节')) {
+          gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
+        }
+
+        const isLastDay =
+          idx === itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
+        if (
+          !isLastDay &&
+          (item.route?.includes('蒂阿瑙') ||
+            item.route?.includes('库克山') ||
+            item.route?.includes('蒂卡波') ||
+            item.route?.includes('但尼丁') ||
+            item.route?.includes('奥马鲁') ||
+            item.route?.includes('罗托鲁阿'))
+        ) {
+          kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+        }
       }
     }
 
-    const dailySubtotal =
-      (eVal || 0) +
-      (fVal || 0) +
-      (gVal || 0) +
-      (hVal || 0) +
-      (iVal || 0) +
-      (jVal || 0) +
-      (kVal || 0);
+    const dailySubtotal = isNoCar
+      ? 0
+      : (eVal || 0) +
+        (fVal || 0) +
+        (gVal || 0) +
+        (hVal || 0) +
+        (iVal || 0) +
+        (jVal || 0) +
+        (kVal || 0);
 
     return {
       eVal,

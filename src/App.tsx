@@ -11,6 +11,7 @@ import { standard18DaysQuoteDoc } from './constants/initialData';
 import { getSystemConfig, SystemConfig, saveQuoteToHistory } from './utils/storage';
 import type { QuoteDocument, ItineraryItem } from './types/itinerary';
 import { exportQuoteToExcel } from './utils/excelExporter';
+import { autoCalculateCostBreakdown } from './utils/costCalculator';
 import { 
   LayoutDashboard, 
   SlidersHorizontal, 
@@ -65,17 +66,43 @@ export function App() {
     }
   };
 
-  // 在画布上直接行内编辑行程条目
+  // 核心联动：更新行程列表并实时自动重算底表与用车总报价
+  const handleUpdateItineraryWithRecalculation = (newItinerary: ItineraryItem[]) => {
+    const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+      newItinerary,
+      quoteDoc.vehicleQuote.vehicleModel,
+      systemConfig
+    );
+    setQuoteDoc(prev => ({
+      ...prev,
+      itinerary: updatedItinerary,
+      vehicleQuote: {
+        ...prev.vehicleQuote,
+        carDays: updatedItinerary.filter(i => !i.noCar).length,
+        totalPrice: totalCarPrice,
+      },
+    }));
+  };
+
+  // 在画布上直接行内编辑行程条目并智能联动重算
   const handleUpdateItineraryItem = (idx: number, field: keyof ItineraryItem, val: any) => {
     const list = [...quoteDoc.itinerary];
+    const isActivityChange = field === 'activity' && typeof val === 'string';
+    const isRouteChange = field === 'route' && typeof val === 'string';
+
     list[idx] = {
       ...list[idx],
       [field]: val,
     };
-    if (field === 'activity' && typeof val === 'string') {
+    if (isActivityChange) {
       list[idx].noCar = val.includes('不用车');
     }
-    setQuoteDoc({ ...quoteDoc, itinerary: list });
+
+    if (isActivityChange || isRouteChange) {
+      handleUpdateItineraryWithRecalculation(list);
+    } else {
+      setQuoteDoc(prev => ({ ...prev, itinerary: list }));
+    }
   };
 
   return (
@@ -266,7 +293,7 @@ export function App() {
                   itinerary={quoteDoc.itinerary}
                   vehicleList={systemConfig.vehicleList}
                   systemConfig={systemConfig}
-                  onUpdateItinerary={(updatedItin) => setQuoteDoc(prev => ({ ...prev, itinerary: updatedItin }))}
+                  onUpdateItinerary={handleUpdateItineraryWithRecalculation}
                   onChange={(updated) => setQuoteDoc(prev => ({ ...prev, vehicleQuote: updated }))}
                 />
               )}
@@ -283,7 +310,7 @@ export function App() {
               {activeTab === 'itinerary' && (
                 <ItineraryManager
                   itinerary={quoteDoc.itinerary}
-                  onChange={(updated) => setQuoteDoc({ ...quoteDoc, itinerary: updated })}
+                  onChange={handleUpdateItineraryWithRecalculation}
                 />
               )}
             </div>

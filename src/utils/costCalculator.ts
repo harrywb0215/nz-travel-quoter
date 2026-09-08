@@ -118,25 +118,29 @@ export function autoCalculateCostBreakdown(
       }
     }
 
-    // 计算当天合计
-    const dayTotal = (southCar || 0) + 
-                     (northCar || 0) + 
-                     (holidaySurcharge || 0) + 
-                     (item.otherSurcharge || 0) + 
-                     (southMeal || 0) + 
-                     (northMeal || 0) + 
-                     (guideAccommodation || 0);
+    // 计算当天合计（若不用车，当天费用绝对为 0）
+    const dayTotal = isNoCar
+      ? 0
+      : (southCar || 0) +
+        (northCar || 0) +
+        (holidaySurcharge || 0) +
+        (item.otherSurcharge || 0) +
+        (southMeal || 0) +
+        (northMeal || 0) +
+        (guideAccommodation || 0);
 
     grandTotalCar += dayTotal;
 
     return {
       ...item,
+      noCar: isNoCar,
       southIslandCar: southCar,
       northIslandCar: northCar,
       southGuideMeal: southMeal,
       northGuideMeal: northMeal,
       holidaySurcharge: holidaySurcharge,
       guideAccommodation: guideAccommodation,
+      otherSurcharge: isNoCar ? undefined : item.otherSurcharge,
     };
   });
 
