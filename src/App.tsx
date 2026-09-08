@@ -84,6 +84,34 @@ export function App() {
     }));
   };
 
+  // 核心联动：切换车型并实时原子化重算整单底表与总报价
+  const handleSelectVehicleModel = (modelName: string) => {
+    const { updatedItinerary, totalCarPrice } = autoCalculateCostBreakdown(
+      quoteDoc.itinerary,
+      modelName,
+      systemConfig
+    );
+
+    const updatedInclusions = quoteDoc.vehicleQuote.inclusions.map((inc) => {
+      if (inc.startsWith('车：')) {
+        return `车：${modelName}，燃油，机场卡，车辆保险`;
+      }
+      return inc;
+    });
+
+    setQuoteDoc((prev) => ({
+      ...prev,
+      itinerary: updatedItinerary,
+      vehicleQuote: {
+        ...prev.vehicleQuote,
+        vehicleModel: modelName,
+        inclusions: updatedInclusions,
+        carDays: updatedItinerary.filter((i) => !i.noCar).length,
+        totalPrice: totalCarPrice > 0 ? totalCarPrice : prev.vehicleQuote.totalPrice,
+      },
+    }));
+  };
+
   // 在画布上直接行内编辑行程条目并智能联动重算
   const handleUpdateItineraryItem = (idx: number, field: keyof ItineraryItem, val: any) => {
     const list = [...quoteDoc.itinerary];
@@ -293,6 +321,7 @@ export function App() {
                   itinerary={quoteDoc.itinerary}
                   vehicleList={systemConfig.vehicleList}
                   systemConfig={systemConfig}
+                  onSelectModel={handleSelectVehicleModel}
                   onUpdateItinerary={handleUpdateItineraryWithRecalculation}
                   onChange={(updated) => setQuoteDoc(prev => ({ ...prev, vehicleQuote: updated }))}
                 />

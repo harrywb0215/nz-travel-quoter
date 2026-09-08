@@ -10,6 +10,7 @@ interface VehicleConfigProps {
   itinerary: ItineraryItem[];
   onChange: (updated: VehicleQuote) => void;
   onUpdateItinerary?: (updatedItinerary: ItineraryItem[]) => void;
+  onSelectModel?: (modelName: string) => void;
   vehicleList?: VehicleConfigItem[];
   systemConfig?: SystemConfig;
 }
@@ -19,6 +20,7 @@ export const VehicleConfig: React.FC<VehicleConfigProps> = ({
   itinerary,
   onChange,
   onUpdateItinerary,
+  onSelectModel,
   vehicleList,
   systemConfig,
 }) => {
@@ -31,6 +33,11 @@ export const VehicleConfig: React.FC<VehicleConfigProps> = ({
 
   // 快捷更换车型并更新包含项中的车型文字，同时联动刷新底表明细
   const handleSelectModel = (modelName: string) => {
+    if (onSelectModel) {
+      onSelectModel(modelName);
+      return;
+    }
+
     const matched = activeVehicles.find((v) => v.name === modelName);
     const updatedInclusions = vehicleQuote.inclusions.map((inc) => {
       if (inc.startsWith('车：')) {
