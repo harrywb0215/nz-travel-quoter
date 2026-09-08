@@ -24,3 +24,8 @@ npm run dev
 # 生产环境打包
 npm run build
 ```
+
+## 🌐 云端部署与上线发布
+详细的 Vercel 与 Cloudflare Pages 导入、自动发布、绑定自定义域名及国内加速访问实操步骤，请参阅：
+👉 **[完整云端部署指南 (DEPLOYMENT_GUIDE.md)](./DEPLOYMENT_GUIDE.md)**
+

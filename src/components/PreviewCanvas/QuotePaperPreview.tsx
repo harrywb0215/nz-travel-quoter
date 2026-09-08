@@ -1,5 +1,7 @@
 import React from 'react';
 import type { QuoteDocument, ItineraryItem } from '../../types/itinerary';
+import { detectIsland } from '../../utils/costCalculator';
+import { getSystemConfig } from '../../utils/storage';
 
 interface QuotePaperPreviewProps {
   quoteDoc: QuoteDocument;
@@ -15,6 +17,79 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
   scale = 1,
 }) => {
   const { itinerary, vehicleQuote, activityQuote, psNote } = quoteDoc;
+  const includeBreakdown = quoteDoc.includeCostBreakdown !== false;
+
+  const sysCfg = getSystemConfig();
+  const matchedV = sysCfg.vehicleList.find((v) => v.name === vehicleQuote.vehicleModel) || sysCfg.vehicleList[0];
+
+  // 动态核算每行的成本明细（与 excelExporter.ts 算法 100% 对齐）
+  const breakdownRows = itinerary.map((item, idx) => {
+    const isNoCar = Boolean(item.noCar || (item.activity && item.activity.includes('不用车')));
+    const hasPredefinedCost =
+      item.northIslandCar != null ||
+      item.southIslandCar != null ||
+      item.northGuideMeal != null ||
+      item.southGuideMeal != null;
+
+    let eVal = item.northIslandCar ?? null;
+    let fVal = item.southIslandCar ?? null;
+    let gVal = item.holidaySurcharge ?? null;
+    let hVal = item.otherSurcharge ?? null;
+    let iVal = item.northGuideMeal ?? null;
+    let jVal = item.southGuideMeal ?? null;
+    let kVal = item.guideAccommodation ?? null;
+
+    if (!hasPredefinedCost && !isNoCar) {
+      const island = detectIsland(item.route);
+      if (island === 'south') {
+        fVal = matchedV?.southIslandPrice || 850;
+        jVal = sysCfg.guideAllowance?.southIslandMeal || 75;
+      } else {
+        eVal = matchedV?.northIslandPrice || 750;
+        iVal = sysCfg.guideAllowance?.northIslandMeal || 50;
+      }
+
+      if (item.date?.includes('2月') || item.route?.includes('春节')) {
+        gVal = matchedV?.holidaySurcharge || (matchedV?.holidaySurcharge === 0 ? null : 175);
+      }
+
+      const isLastDay =
+        idx === itinerary.length - 1 && (item.route?.includes('送机') || item.route?.includes('离开'));
+      if (
+        !isLastDay &&
+        (item.route?.includes('蒂阿瑙') ||
+          item.route?.includes('库克山') ||
+          item.route?.includes('蒂卡波') ||
+          item.route?.includes('但尼丁') ||
+          item.route?.includes('奥马鲁') ||
+          item.route?.includes('罗托鲁阿'))
+      ) {
+        kVal = sysCfg.guideAllowance?.accommodationSubsidy || 200;
+      }
+    }
+
+    const dailySubtotal =
+      (eVal || 0) +
+      (fVal || 0) +
+      (gVal || 0) +
+      (hVal || 0) +
+      (iVal || 0) +
+      (jVal || 0) +
+      (kVal || 0);
+
+    return {
+      eVal,
+      fVal,
+      gVal,
+      hVal,
+      iVal,
+      jVal,
+      kVal,
+      dailySubtotal,
+    };
+  });
+
+  const grandTotalCost = breakdownRows.reduce((sum, r) => sum + r.dailySubtotal, 0);
 
   return (
     <div style={{
@@ -27,46 +102,49 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
         className="quote-paper"
         id="quote-paper-container"
         style={{
-          width: '840px',
+          width: includeBreakdown ? '1240px' : '840px',
+          transition: 'width 0.25s ease',
           background: '#ffffff',
           color: '#000000',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.65)',
-          padding: '36px 44px 80px 44px',
+          padding: includeBreakdown ? '36px 36px 80px 36px' : '36px 44px 80px 44px',
           borderRadius: '4px',
           boxSizing: 'border-box',
           fontFamily: '"STKaiti", "KaiTi", "华文楷体", "楷体", serif',
-          zoom: scale, // 使用 zoom 可以让文档流高度自然重新计算，杜绝任何截断
+          zoom: scale,
         }}
       >
-        {/* 1. Row 1: 顶部附加说明行 (红字，对应 PS： 26春节：2.16-26 附加费) */}
-        <div style={{
-          marginBottom: '6px',
-          fontSize: '13px',
-          fontWeight: 600,
-          color: '#dc2626',
-          display: 'flex',
-          alignItems: 'center',
-          background: '#ffffff',
-        }}>
-          <input
-            type="text"
-            value={psNote || 'PS： 26春节：2.16-26 附加费'}
-            onChange={(e) => onUpdatePsNote && onUpdatePsNote(e.target.value)}
-            placeholder="顶部备注（如：PS：26春节：2.16-26 附加费，可留空）"
-            style={{
-              border: 'none',
-              background: '#ffffff',
-              color: '#dc2626',
-              fontWeight: 600,
-              fontSize: '13px',
-              fontFamily: 'inherit',
-              width: '100%',
-              padding: '2px 0',
-            }}
-          />
-        </div>
+        {/* 1. 未勾选核算底表时，顶部独立的 PS 附加说明行 */}
+        {!includeBreakdown && (
+          <div style={{
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#dc2626',
+            display: 'flex',
+            alignItems: 'center',
+            background: '#ffffff',
+          }}>
+            <input
+              type="text"
+              value={psNote || 'PS： 26春节：2.16-26 附加费'}
+              onChange={(e) => onUpdatePsNote && onUpdatePsNote(e.target.value)}
+              placeholder="顶部备注（如：PS：26春节：2.16-26 附加费，可留空）"
+              style={{
+                border: 'none',
+                background: '#ffffff',
+                color: '#dc2626',
+                fontWeight: 600,
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                width: '100%',
+                padding: '2px 0',
+              }}
+            />
+          </div>
+        )}
 
-        {/* 2. 行程明细表格 (对应原文件 Row 2 ~ Row 19) */}
+        {/* 2. 行程明细表格 (对应原文件 Row 1/2 ~ Row 19) */}
         <table
           style={{
             width: '100%',
@@ -77,15 +155,91 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
           }}
         >
           <thead>
+            {/* 勾选核算底表时：Row 1 渲染 A1:D1(备注) + E1:H1(车型) + I1:K1(导游) + L1(总计) */}
+            {includeBreakdown && (
+              <tr style={{ height: '28px', background: '#ffffff' }}>
+                <th
+                  colSpan={4}
+                  style={{
+                    border: 'none',
+                    padding: '2px 4px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    color: '#dc2626',
+                    background: '#ffffff',
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={psNote || 'PS： 26春节：2.16-26 附加费'}
+                    onChange={(e) => onUpdatePsNote && onUpdatePsNote(e.target.value)}
+                    placeholder="顶部备注（如：PS：26春节：2.16-26 附加费，可留空）"
+                    style={{
+                      border: 'none',
+                      background: '#ffffff',
+                      color: '#dc2626',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      width: '100%',
+                      padding: '2px 0',
+                    }}
+                  />
+                </th>
+                <th
+                  colSpan={4}
+                  style={{
+                    border: '1px solid #111827',
+                    padding: '4px 6px',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    color: '#111827',
+                    background: '#ffffff',
+                    fontSize: '13px',
+                  }}
+                >
+                  {vehicleQuote.vehicleModel || '7 座 Alphard'}
+                </th>
+                <th
+                  colSpan={3}
+                  style={{
+                    border: '1px solid #111827',
+                    padding: '4px 6px',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    color: '#111827',
+                    background: '#ffffff',
+                    fontSize: '13px',
+                  }}
+                >
+                  导游
+                </th>
+                <th
+                  style={{
+                    border: '1px solid #111827',
+                    padding: '4px 6px',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    color: '#111827',
+                    background: '#ffffff',
+                    fontSize: '13px',
+                  }}
+                >
+                  总计
+                </th>
+              </tr>
+            )}
+
+            {/* Row 2: 表头字段 */}
             <tr style={{ height: '26px', background: '#ffffff' }}>
               <th
                 colSpan={2}
                 style={{
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #111827',
                   padding: '4px 8px',
                   textAlign: 'center',
                   fontWeight: 500,
-                  width: '26%',
+                  width: includeBreakdown ? '12%' : '26%',
                   color: '#111827',
                   background: '#ffffff',
                 }}
@@ -94,11 +248,11 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
               </th>
               <th
                 style={{
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #111827',
                   padding: '4px 10px',
                   textAlign: 'center',
                   fontWeight: 500,
-                  width: '42%',
+                  width: includeBreakdown ? '23%' : '42%',
                   color: '#111827',
                   background: '#ffffff',
                 }}
@@ -107,24 +261,37 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
               </th>
               <th
                 style={{
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #111827',
                   padding: '4px 10px',
                   textAlign: 'center',
                   fontWeight: 500,
-                  width: '32%',
+                  width: includeBreakdown ? '19%' : '32%',
                   color: '#111827',
                   background: '#ffffff',
                 }}
               >
                 活动 // 球场
               </th>
+
+              {includeBreakdown && (
+                <>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5.5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>北岛</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5.5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>南岛</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '6.5%', color: '#111827', background: '#ffffff', fontSize: '11.5px' }}>节日附加费</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>附加费</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5.5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>北岛餐补</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5.5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>南岛餐补</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '5.5%', color: '#111827', background: '#ffffff', fontSize: '12px' }}>住宿补贴</th>
+                  <th style={{ border: '1px solid #111827', padding: '4px 2px', textAlign: 'center', fontWeight: 500, width: '7%', color: '#111827', background: '#ffffff', fontSize: '12.5px' }}>小计</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody style={{ background: '#ffffff' }}>
             {itinerary.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={includeBreakdown ? 12 : 4}
                   style={{
                     border: '1px dashed #cbd5e1',
                     padding: '28px 16px',
@@ -143,136 +310,190 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
                 </td>
               </tr>
             ) : (
-              itinerary.map((item, idx) => (
-              <tr key={item.id} style={{ minHeight: '24px', background: '#ffffff' }}>
-                {/* Day 标记 */}
+              itinerary.map((item, idx) => {
+                const bRow = breakdownRows[idx];
+                return (
+                  <tr key={item.id} style={{ minHeight: '24px', background: '#ffffff' }}>
+                    {/* Day 标记 */}
+                    <td
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        padding: '5px 8px',
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={item.day}
+                        onChange={(e) => onUpdateItineraryItem(idx, 'day', e.target.value)}
+                        style={{
+                          border: 'none',
+                          background: '#ffffff',
+                          color: '#000000',
+                          padding: 0,
+                          width: '100%',
+                          textAlign: 'center',
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                        }}
+                      />
+                    </td>
+
+                    {/* 具体日期 */}
+                    <td
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        padding: '5px 8px',
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={item.date}
+                        onChange={(e) => onUpdateItineraryItem(idx, 'date', e.target.value)}
+                        style={{
+                          border: 'none',
+                          background: '#ffffff',
+                          color: '#000000',
+                          padding: 0,
+                          width: '100%',
+                          textAlign: 'center',
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                        }}
+                      />
+                    </td>
+
+                    {/* 行程路线 */}
+                    <td
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        padding: '5px 10px',
+                        textAlign: 'left',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <textarea
+                        rows={item.route.includes('\n') ? 2 : 1}
+                        value={item.route}
+                        onChange={(e) => onUpdateItineraryItem(idx, 'route', e.target.value)}
+                        style={{
+                          border: 'none',
+                          background: '#ffffff',
+                          color: '#000000',
+                          padding: 0,
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                          resize: 'none',
+                          lineHeight: '1.3',
+                        }}
+                      />
+                    </td>
+
+                    {/* 活动 / 球场 (特殊状态如“不用车”标红) */}
+                    <td
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        padding: '5px 10px',
+                        textAlign: 'left',
+                        background: '#ffffff',
+                        color: item.noCar || item.activity.includes('不用车') ? '#dc2626' : '#000000',
+                        fontWeight: item.noCar || item.activity.includes('不用车') ? 600 : 'normal',
+                      }}
+                    >
+                      <textarea
+                        rows={item.activity && item.activity.includes('\n') ? 2 : 1}
+                        value={item.activity}
+                        onChange={(e) => onUpdateItineraryItem(idx, 'activity', e.target.value)}
+                        style={{
+                          border: 'none',
+                          background: '#ffffff',
+                          color: item.noCar || item.activity.includes('不用车') ? '#dc2626' : '#000000',
+                          padding: 0,
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                          fontWeight: 'inherit',
+                          resize: 'none',
+                          lineHeight: '1.3',
+                        }}
+                      />
+                    </td>
+
+                    {/* 勾选核算底表时：E~L 列明细与小计 */}
+                    {includeBreakdown && (
+                      <>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.eVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.fVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.gVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.hVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.iVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.jVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 2px', textAlign: 'center', fontSize: '12.5px' }}>
+                          {bRow?.kVal ?? ''}
+                        </td>
+                        <td style={{ border: '1px solid #e5e7eb', padding: '4px 4px', textAlign: 'center', fontWeight: 600, fontSize: '12.5px', color: '#1e293b' }}>
+                          {bRow?.dailySubtotal ? bRow.dailySubtotal.toLocaleString() : ''}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })
+            )}
+
+            {/* 勾选核算底表时：紧接着在最后一天下方渲染总计求和行 */}
+            {includeBreakdown && itinerary.length > 0 && (
+              <tr style={{ height: '26px', background: '#ffffff' }}>
+                <td colSpan={11} style={{ border: 'none', background: '#ffffff' }} />
                 <td
                   style={{
-                    border: '1px solid #f3f4f6',
-                    padding: '5px 8px',
+                    border: '1px solid #111827',
+                    padding: '4px 6px',
                     textAlign: 'center',
-                    width: '11%',
-                    whiteSpace: 'nowrap',
+                    fontWeight: 700,
+                    color: '#ff0000',
                     background: '#ffffff',
+                    fontSize: '13px',
                   }}
+                  title="行程核算总计（对齐 Excel SUM 公式）"
                 >
-                  <input
-                    type="text"
-                    value={item.day}
-                    onChange={(e) => onUpdateItineraryItem(idx, 'day', e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: '#ffffff',
-                      color: '#000000',
-                      padding: 0,
-                      width: '100%',
-                      textAlign: 'center',
-                      fontFamily: 'inherit',
-                      fontSize: 'inherit',
-                    }}
-                  />
-                </td>
-
-                {/* 具体日期 */}
-                <td
-                  style={{
-                    border: '1px solid #f3f4f6',
-                    padding: '5px 8px',
-                    textAlign: 'center',
-                    width: '15%',
-                    whiteSpace: 'nowrap',
-                    background: '#ffffff',
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={item.date}
-                    onChange={(e) => onUpdateItineraryItem(idx, 'date', e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: '#ffffff',
-                      color: '#000000',
-                      padding: 0,
-                      width: '100%',
-                      textAlign: 'center',
-                      fontFamily: 'inherit',
-                      fontSize: 'inherit',
-                    }}
-                  />
-                </td>
-
-                {/* 行程路线 */}
-                <td
-                  style={{
-                    border: '1px solid #f3f4f6',
-                    padding: '5px 10px',
-                    textAlign: 'left',
-                    background: '#ffffff',
-                  }}
-                >
-                  <textarea
-                    rows={item.route.includes('\n') ? 2 : 1}
-                    value={item.route}
-                    onChange={(e) => onUpdateItineraryItem(idx, 'route', e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: '#ffffff',
-                      color: '#000000',
-                      padding: 0,
-                      width: '100%',
-                      fontFamily: 'inherit',
-                      fontSize: 'inherit',
-                      resize: 'none',
-                      lineHeight: '1.3',
-                    }}
-                  />
-                </td>
-
-                {/* 活动 / 球场 (特殊状态如“不用车”标红) */}
-                <td
-                  style={{
-                    border: '1px solid #f3f4f6',
-                    padding: '5px 10px',
-                    textAlign: 'left',
-                    background: '#ffffff',
-                    color: item.noCar || item.activity.includes('不用车') ? '#dc2626' : '#000000',
-                    fontWeight: item.noCar || item.activity.includes('不用车') ? 600 : 'normal',
-                  }}
-                >
-                  <textarea
-                    rows={item.activity && item.activity.includes('\n') ? 2 : 1}
-                    value={item.activity}
-                    onChange={(e) => onUpdateItineraryItem(idx, 'activity', e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: '#ffffff',
-                      color: item.noCar || item.activity.includes('不用车') ? '#dc2626' : '#000000',
-                      padding: 0,
-                      width: '100%',
-                      fontFamily: 'inherit',
-                      fontSize: 'inherit',
-                      fontWeight: 'inherit',
-                      resize: 'none',
-                      lineHeight: '1.3',
-                    }}
-                  />
+                  {grandTotalCost > 0 ? grandTotalCost.toLocaleString() : ''}
                 </td>
               </tr>
-            )))}
+            )}
           </tbody>
         </table>
 
         {/* 对应原表中的空两行 */}
         <div style={{ height: '32px', background: '#ffffff' }} />
 
-        {/* 3. 核心报价块 (完全对齐原文件的样式与排版，显式设置全白底色，杜绝任何黑底透出) */}
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '13.5px',
-            lineHeight: '1.4',
-            background: '#ffffff',
+        {/* 3. 核心报价块 (完全对齐原文件的样式与排版，含底表时占左侧对齐 A~D 列，右侧留白) */}
+        <div style={{ width: includeBreakdown ? '660px' : '100%' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '13.5px',
+              lineHeight: '1.4',
+              background: '#ffffff',
             color: '#000000',
           }}
         >
@@ -473,5 +694,6 @@ export const QuotePaperPreview: React.FC<QuotePaperPreviewProps> = ({
         </table>
       </div>
     </div>
+  </div>
   );
 };

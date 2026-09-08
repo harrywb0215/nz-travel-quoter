@@ -477,6 +477,33 @@ export function App() {
 
               <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
 
+              {/* 含核算底表切换复选框（与 Header 状态同步联动） */}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: quoteDoc.includeCostBreakdown !== false ? '#34d399' : 'var(--text-dim)',
+                background: quoteDoc.includeCostBreakdown !== false ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                border: `1px solid ${quoteDoc.includeCostBreakdown !== false ? 'rgba(16, 185, 129, 0.35)' : 'var(--border-subtle)'}`,
+                padding: '3px 10px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'all 0.2s ease',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={quoteDoc.includeCostBreakdown !== false}
+                  onChange={(e) => setQuoteDoc({ ...quoteDoc, includeCostBreakdown: e.target.checked })}
+                  style={{ width: '13px', height: '13px', accentColor: '#10b981', cursor: 'pointer' }}
+                />
+                <span>含核算底表 (E~L)</span>
+              </label>
+
+              <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
+
               <button
                 onClick={() => setViewMode('editor')}
                 style={{
