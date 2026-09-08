@@ -132,30 +132,35 @@ export async function exportQuoteToExcel(doc: QuoteDocument, fileName?: string) 
   currentRowNum++;
 
   // 3. 行程行明细
-  const itineraryStartRow = currentRowNum;
+  const itineraryStartRow = (worksheet.lastRow?.number || 2) + 1;
   doc.itinerary.forEach((item, idx) => {
-    // 动态行高：若行程或活动有多行换行，设为 40~42，否则 20
+    // 动态行高：若行程或活动有多行换行，设为 42，否则 20
     const hasMultipleLines = (item.route && item.route.includes('\n')) || (item.activity && item.activity.includes('\n'));
     const rHeight = hasMultipleLines ? 42 : 20;
 
     const row = worksheet.addRow([item.day, item.date, item.route, item.activity]);
     row.height = rHeight;
+    const rNum = row.number;
 
-    const cA = worksheet.getCell(`A${currentRowNum}`);
-    const cB = worksheet.getCell(`B${currentRowNum}`);
-    const cC = worksheet.getCell(`C${currentRowNum}`);
-    const cD = worksheet.getCell(`D${currentRowNum}`);
+    const cA = worksheet.getCell(`A${rNum}`);
+    const cB = worksheet.getCell(`B${rNum}`);
+    const cC = worksheet.getCell(`C${rNum}`);
+    const cD = worksheet.getCell(`D${rNum}`);
 
     cA.font = fontKaiti;
     cA.alignment = { vertical: 'middle', horizontal: 'center' };
+    cA.border = thinBorder;
 
     cB.font = fontKaiti;
     cB.alignment = { vertical: 'middle', horizontal: 'center' };
+    cB.border = thinBorder;
 
     cC.font = fontKaiti;
     cC.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 };
+    cC.border = thinBorder;
 
     cD.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 };
+    cD.border = thinBorder;
     if (item.noCar || item.activity.includes('不用车')) {
       cD.font = fontRedBold;
     } else {
@@ -217,180 +222,189 @@ export async function exportQuoteToExcel(doc: QuoteDocument, fileName?: string) 
         }
       }
 
-      worksheet.getCell(`E${currentRowNum}`).value = eVal;
-      worksheet.getCell(`F${currentRowNum}`).value = fVal;
-      worksheet.getCell(`G${currentRowNum}`).value = gVal;
-      worksheet.getCell(`H${currentRowNum}`).value = hVal;
-      worksheet.getCell(`I${currentRowNum}`).value = iVal;
-      worksheet.getCell(`J${currentRowNum}`).value = jVal;
-      worksheet.getCell(`K${currentRowNum}`).value = kVal;
+      worksheet.getCell(`E${rNum}`).value = eVal;
+      worksheet.getCell(`F${rNum}`).value = fVal;
+      worksheet.getCell(`G${rNum}`).value = gVal;
+      worksheet.getCell(`H${rNum}`).value = hVal;
+      worksheet.getCell(`I${rNum}`).value = iVal;
+      worksheet.getCell(`J${rNum}`).value = jVal;
+      worksheet.getCell(`K${rNum}`).value = kVal;
 
       // L 列为 SUM(E:K)
-      worksheet.getCell(`L${currentRowNum}`).value = {
-        formula: `SUM(E${currentRowNum}:K${currentRowNum})`,
+      worksheet.getCell(`L${rNum}`).value = {
+        formula: `SUM(E${rNum}:K${rNum})`,
       };
 
       for (let colIdx = 5; colIdx <= 12; colIdx++) {
         const colLetter = String.fromCharCode(64 + colIdx);
-        const cell = worksheet.getCell(`${colLetter}${currentRowNum}`);
+        const cell = worksheet.getCell(`${colLetter}${rNum}`);
         cell.font = fontKaiti;
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = thinBorder;
       }
     }
-
-    currentRowNum++;
   });
-  const itineraryEndRow = currentRowNum - 1;
+  const itineraryEndRow = worksheet.lastRow?.number || itineraryStartRow;
 
   // 若带核算表，在紧接着的一行写核算小计合计行
   if (includeBreakdown) {
-    worksheet.getCell(`L${currentRowNum}`).value = {
+    const totalRow = worksheet.addRow([]);
+    totalRow.height = 22;
+    const tRNum = totalRow.number;
+    const totalCell = worksheet.getCell(`L${tRNum}`);
+    totalCell.value = {
       formula: `SUM(L${itineraryStartRow}:L${itineraryEndRow})`,
     };
-    worksheet.getCell(`L${currentRowNum}`).font = fontRedBold;
-    worksheet.getCell(`L${currentRowNum}`).border = thinBorder;
-    worksheet.getCell(`L${currentRowNum}`).alignment = { vertical: 'middle', horizontal: 'center' };
+    totalCell.font = fontRedBold;
+    totalCell.border = thinBorder;
+    totalCell.alignment = { vertical: 'middle', horizontal: 'center' };
   }
 
-  // 4. 空行两行（对应原文件中的 Row 20, Row 21）
+  // 4. 空行两行（对应原文件中的间隔空行）
   const emptyRow1 = worksheet.addRow([]);
   emptyRow1.height = 20;
-  currentRowNum++;
 
   const emptyRow2 = worksheet.addRow([]);
   emptyRow2.height = 20;
-  currentRowNum++;
 
-  // 5. 核心报价块 (完全对齐原文件的样式与排版)
-  // 5.1 模块 1：用车报价 (Row 22: 黄底，红字加粗，thin 边框，indent 2)
+  // 5. 核心报价块 (完全对齐原文件的样式与排版，严密采用 row.number 绝对行号)
+  // 5.1 模块 1：用车报价 (黄底，红字加粗，thin 边框，indent 2)
   const vehicleTitleText = `1. 以上行程用车：${doc.vehicleQuote.currency} ${doc.vehicleQuote.totalPrice.toLocaleString()}`;
   const vTitleRow = worksheet.addRow([vehicleTitleText, '', '', '']);
-  vTitleRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const vCell = worksheet.getCell(`A${currentRowNum}`);
+  vTitleRow.height = 22;
+  const vRNum = vTitleRow.number;
+  worksheet.mergeCells(`A${vRNum}:D${vRNum}`);
+  const vCell = worksheet.getCell(`A${vRNum}`);
   vCell.font = fontRedBold;
   vCell.fill = yellowFill;
   vCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  applyBorderToMergedRange(worksheet, `A${vRNum}:D${vRNum}`, thinBorder);
 
-  // 5.2 价格包含标题 (Row 23)
+  // 5.2 价格包含标题
   const incTitleRow = worksheet.addRow(['价格包含：', '', '', '']);
   incTitleRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const incTitleCell = worksheet.getCell(`A${currentRowNum}`);
+  const incTRNum = incTitleRow.number;
+  worksheet.mergeCells(`A${incTRNum}:D${incTRNum}`);
+  const incTitleCell = worksheet.getCell(`A${incTRNum}`);
   incTitleCell.font = fontKaiti;
   incTitleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  applyBorderToMergedRange(worksheet, `A${incTRNum}:D${incTRNum}`, thinBorder);
 
-  // 5.3 价格包含明细 (Row 24, Row 25: indent 3)
+  // 5.3 价格包含明细 (indent 3)
   doc.vehicleQuote.inclusions.forEach((incText) => {
     const incRow = worksheet.addRow([incText, '', '', '']);
     incRow.height = 20;
-    worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-    const cell = worksheet.getCell(`A${currentRowNum}`);
+    const rNum = incRow.number;
+    worksheet.mergeCells(`A${rNum}:D${rNum}`);
+    const cell = worksheet.getCell(`A${rNum}`);
     cell.font = fontKaiti;
     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 3 };
-    applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-    currentRowNum++;
+    applyBorderToMergedRange(worksheet, `A${rNum}:D${rNum}`, thinBorder);
   });
 
-  // 5.4 价格包含占位空行 (Row 26: 原文件中有一行合并单元格的空行，带 thin 边框)
+  // 5.4 价格包含占位空行 (原文件中有一行合并单元格的空行，带 thin 边框)
   const placeholderRow = worksheet.addRow(['', '', '', '']);
   placeholderRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  const plRNum = placeholderRow.number;
+  worksheet.mergeCells(`A${plRNum}:D${plRNum}`);
+  applyBorderToMergedRange(worksheet, `A${plRNum}:D${plRNum}`, thinBorder);
 
-  // 5.5 价格不含标题 (Row 27)
+  // 5.5 价格不含标题
   const excTitleRow = worksheet.addRow(['价格不含：', '', '', '']);
   excTitleRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const excTitleCell = worksheet.getCell(`A${currentRowNum}`);
+  const excTRNum = excTitleRow.number;
+  worksheet.mergeCells(`A${excTRNum}:D${excTRNum}`);
+  const excTitleCell = worksheet.getCell(`A${excTRNum}`);
   excTitleCell.font = fontKaiti;
   excTitleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  applyBorderToMergedRange(worksheet, `A${excTRNum}:D${excTRNum}`, thinBorder);
 
-  // 5.6 价格不含明细带序号 (Row 28 ~ 30: A列序号居中，B:D合并 indent 1)
+  // 5.6 价格不含明细带序号 (A列序号居中，B:D合并 indent 1)
   doc.vehicleQuote.exclusions.forEach((excText, index) => {
     const excRow = worksheet.addRow([index + 1, excText, '', '']);
     excRow.height = 22;
+    const rNum = excRow.number;
 
-    const numCell = worksheet.getCell(`A${currentRowNum}`);
+    const numCell = worksheet.getCell(`A${rNum}`);
     numCell.font = fontKaiti;
     numCell.alignment = { vertical: 'middle', horizontal: 'center' };
     numCell.border = thinBorder;
 
-    worksheet.mergeCells(`B${currentRowNum}:D${currentRowNum}`);
-    const textCell = worksheet.getCell(`B${currentRowNum}`);
+    worksheet.mergeCells(`B${rNum}:D${rNum}`);
+    const textCell = worksheet.getCell(`B${rNum}`);
     textCell.font = fontKaiti;
     textCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-
-    applyBorderToMergedRange(worksheet, `B${currentRowNum}:D${currentRowNum}`, thinBorder);
-    currentRowNum++;
+    applyBorderToMergedRange(worksheet, `B${rNum}:D${rNum}`, thinBorder);
   });
 
-  // 5.7 说明标题 (Row 31)
+  // 5.7 说明标题
   const noteTitleRow = worksheet.addRow(['说明：', '', '', '']);
   noteTitleRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const noteTitleCell = worksheet.getCell(`A${currentRowNum}`);
+  const noteTRNum = noteTitleRow.number;
+  worksheet.mergeCells(`A${noteTRNum}:D${noteTRNum}`);
+  const noteTitleCell = worksheet.getCell(`A${noteTRNum}`);
   noteTitleCell.font = fontKaiti;
   noteTitleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  applyBorderToMergedRange(worksheet, `A${noteTRNum}:D${noteTRNum}`, thinBorder);
 
-  // 5.8 说明明细带序号 (Row 32 ~ 33: A列序号居中，B:D合并 indent 1)
+  // 5.8 说明明细带序号 (A列序号居中，B:D合并 indent 1)
   doc.vehicleQuote.notes.forEach((noteText, index) => {
     const noteRow = worksheet.addRow([index + 1, noteText, '', '']);
     noteRow.height = 20;
+    const rNum = noteRow.number;
 
-    const numCell = worksheet.getCell(`A${currentRowNum}`);
+    const numCell = worksheet.getCell(`A${rNum}`);
     numCell.font = fontKaiti;
     numCell.alignment = { vertical: 'middle', horizontal: 'center' };
     numCell.border = thinBorder;
 
-    worksheet.mergeCells(`B${currentRowNum}:D${currentRowNum}`);
-    const textCell = worksheet.getCell(`B${currentRowNum}`);
+    worksheet.mergeCells(`B${rNum}:D${rNum}`);
+    const textCell = worksheet.getCell(`B${rNum}`);
     textCell.font = fontKaiti;
     textCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-
-    applyBorderToMergedRange(worksheet, `B${currentRowNum}:D${currentRowNum}`, thinBorder);
-    currentRowNum++;
+    applyBorderToMergedRange(worksheet, `B${rNum}:D${rNum}`, thinBorder);
   });
 
-  // 5.9 模块 2：活动费用 (Row 34: 黄底，红字加粗，thin 边框，indent 2)
-  const actTitleText = `2. 活动费用：成人：${doc.activityQuote.currency} ${doc.activityQuote.adultPrice}/人；`;
+  // 5.9 模块 2：活动费用 (黄底，红字加粗，完整输出成人价与儿童价，thin 边框，indent 2)
+  const childPricePart = doc.activityQuote.childPrice
+    ? ` 儿童：${doc.activityQuote.currency} ${doc.activityQuote.childPrice}/人；`
+    : '';
+  const actTitleText = `2. 活动费用：成人：${doc.activityQuote.currency} ${doc.activityQuote.adultPrice}/人；${childPricePart}`;
   const actTitleRow = worksheet.addRow([actTitleText, '', '', '']);
-  actTitleRow.height = 20;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const actCell = worksheet.getCell(`A${currentRowNum}`);
+  actTitleRow.height = 22;
+  const actTRNum = actTitleRow.number;
+  worksheet.mergeCells(`A${actTRNum}:D${actTRNum}`);
+  const actCell = worksheet.getCell(`A${actTRNum}`);
   actCell.font = fontRedBold;
   actCell.fill = yellowFill;
   actCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 2 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
-  currentRowNum++;
+  applyBorderToMergedRange(worksheet, `A${actTRNum}:D${actTRNum}`, thinBorder);
 
-  // 5.10 活动包含长文本 (Row 35: A:D 合并，自动换行，行高 65，indent 1)
+  // 5.10 活动包含长文本 (A:D 合并，自动换行，动态自适应行高，indent 1)
   const actContentText =
     doc.activityQuote.customActivityText ||
     `活动包含：\n${doc.activityQuote.includedActivities.join('；')}`;
   
-  // 保证包含“活动包含：”前缀
   const fullActText = actContentText.startsWith('活动包含：')
     ? actContentText
     : `活动包含：\n${actContentText}`;
 
+  // 动态根据活动字符数与换行数计算行高（保证十余项活动完整显示，不遮挡不截断）
+  const actLines = fullActText.split('\n');
+  let estLines = 0;
+  actLines.forEach(l => {
+    estLines += Math.max(1, Math.ceil(l.length / 42));
+  });
+  const actDynamicHeight = Math.max(75, Math.min(220, estLines * 18 + 16));
+
   const actContentRow = worksheet.addRow([fullActText, '', '', '']);
-  actContentRow.height = 65;
-  worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
-  const actContentCell = worksheet.getCell(`A${currentRowNum}`);
+  actContentRow.height = actDynamicHeight;
+  const actCRNum = actContentRow.number;
+  worksheet.mergeCells(`A${actCRNum}:D${actCRNum}`);
+  const actContentCell = worksheet.getCell(`A${actCRNum}`);
   actContentCell.font = fontKaiti;
-  actContentCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 };
-  applyBorderToMergedRange(worksheet, `A${currentRowNum}:D${currentRowNum}`, thinBorder);
+  actContentCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true, indent: 1 };
+  applyBorderToMergedRange(worksheet, `A${actCRNum}:D${actCRNum}`, thinBorder);
 
   // 导出为 Excel 文件
   const buffer = await workbook.xlsx.writeBuffer();
